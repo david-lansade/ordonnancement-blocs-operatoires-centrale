@@ -16,6 +16,11 @@ Projet fil rouge IA-Santé : prédiction par apprentissage automatique, métaheu
 
 </div>
 
+> 🎓 **Contexte :** projet réalisé dans le cadre de l'**électif d'intégration IA et Santé** de l'**École Centrale de Lille**,
+> sous la supervision de **M. Slim HAMMADI**.
+>
+> 👥 **Équipe :** David LANSADE, Robin CURSENTE, Clément MORIN, Rafael LAZAR.
+
 ---
 
 ## Sommaire
@@ -266,5 +271,5 @@ Ces données servent uniquement à un usage pédagogique, dans le cadre du proje
 
 ## Auteurs
 
-Projet fil rouge IA-Santé, groupe 5 :
-**Robin Cursente**, **David Lansade**, **Rafael Lazar**, **Clément Morin--Berthon**.
+Projet de l'électif d'intégration IA et Santé, École Centrale de Lille, supervisé par M. Slim HAMMADI (groupe 5) :
+**David LANSADE**, **Robin CURSENTE**, **Clément MORIN**, **Rafael LAZAR**.
