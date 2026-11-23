@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloc opératoire — flux tiré</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M9 16h14M16 9v14' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+</head>
+<body>
+<header class="entete">
+  <div class="marque">
+    <div class="titre">Bloc opératoire <span class="sous">· flux tiré</span></div>
+    <!-- bouton de mode sous le titre : les onglets du mode Technicien gardent toute la ligne -->
+    <div class="ligne-marque">
+      <span class="soustitre">Fil rouge IA-Santé</span>
+      <div class="segments choix-mode" id="choix-mode" role="group" aria-label="Mode d'affichage">
+        <button data-mode="medecin" title="Interface simplifiée : réglages, ouverture de l'hôpital, planning, attribution">Médecin</button>
+        <button data-mode="technicien" title="Tout le site : simulation, grille, comparaison des méthodes">Technicien</button>
+      </div>
+    </div>
+  </div>
+  <!-- mode Médecin : 4 onglets dans l'ordre du travail (ordre fixé par style.css) ; mode Technicien : tout le site -->
+  <nav class="onglets" role="tablist">
+    <button class="onglet actif" data-onglet="attribution" role="tab"><span class="medecin-seul num-onglet">4</span>Attribution patient</button>
+    <button class="onglet" data-onglet="planning" role="tab"><span class="medecin-seul num-onglet">3</span>Planning</button>
+    <button class="onglet tech-seul" data-onglet="simulation" role="tab">Simulation et aléas</button>
+    <button class="onglet tech-seul" data-onglet="grille" role="tab">Grille des vacations</button>
+    <button class="onglet" data-onglet="initiaux" role="tab"><span class="tech-seul">Patients initiaux</span><span class="medecin-seul"><span class="num-onglet">2</span>Ouverture de l'hôpital</span></button>
+    <button class="onglet tech-seul" data-onglet="technique" role="tab">Technique</button>
+    <button class="onglet medecin-seul" data-onglet="reglages" role="tab"><span class="num-onglet">1</span>Réglages</button>
+  </nav>
+  <!-- page de présentation du site : bouton à part, pas un onglet (le titre y mène aussi) -->
+  <button id="btn-presentation" class="bouton-icone" title="Présentation du site et de son fonctionnement" aria-label="Présentation du site">?</button>
+  <button id="theme" class="bouton-icone" title="Thème clair / sombre" aria-label="Changer de thème">◐</button>
+</header>
+
+<main>
+<!-- ======================= PRÉSENTATION DU SITE (bouton « ? » de l'en-tête, pas d'onglet) ======================= -->
+<section id="presentation" class="page">
+  <div class="presentation">
+    <div class="carte presentation-intro">
+      <h2>Présentation du site</h2>
+      <p>Ce site aide à <b>programmer les opérations d'un bloc opératoire</b> en tenant compte, en même temps, des
+        <b>salles</b>, des <b>lits d'hospitalisation</b> et des <b>places ambulatoires</b>.</p>
+      <p>D'habitude, le chirurgien fixe la date de l'opération, puis l'hôpital cherche un lit&nbsp;: les manques n'apparaissent
+        qu'au dernier moment et obligent à déprogrammer. Ici, l'outil part de la capacité de l'hôpital et <b>propose des dates</b>
+        qui la respectent (on parle de <b>flux tiré</b>). Le médecin garde toujours la décision.</p>
+    </div>
+
+    <div class="carte">
+      <h2>Le fonctionnement, en 4 étapes</h2>
+      <ol class="etapes-site">
+        <li><span class="num">1</span><div><b>Réglages</b>
+          <p>Les capacités de l'hôpital (lits en semaine et le week-end, places ambulatoires), les délais (préparation,
+            délai médical maximal, tolérance), les horaires des patients et les priorités du planning.</p></div></li>
+        <li><span class="num">2</span><div><b>Ouverture de l'hôpital</b>
+          <p>La liste des patients qui attendent une opération, inventés à partir de l'activité réelle&nbsp;; on peut en ajouter.
+            L'outil calcule le planning de départ en quelques secondes.</p></div></li>
+        <li><span class="num">3</span><div><b>Planning</b>
+          <p>Les lits et les places occupés chaque jour, les patients de chaque vacation et le programme opératoire, à
+            imprimer ou à exporter. On peut aussi déplacer ou déprogrammer un patient.</p></div></li>
+        <li><span class="num">4</span><div><b>Attribution patient</b>
+          <p>Un nouveau patient à programmer&nbsp;: l'outil prédit sa durée d'opération et son séjour, puis propose jusqu'à
+            trois dates, chacune expliquée. Le médecin choisit.</p></div></li>
+      </ol>
+      <p class="aide">En mode Technicien, ces étapes s'appellent Technique, Patients initiaux, Planning et Attribution patient.</p>
+    </div>
+
+    <div class="carte">
+      <h2>Ce que l'outil calcule</h2>
+      <ul class="liste-site">
+        <li><b>Il prédit</b> ce que l'on ne connaît pas encore d'un patient&nbsp;: la durée de son opération (avec son incertitude),
+          s'il rentre chez lui le soir (ambulatoire) et, sinon, son nombre de nuits. Le modèle a appris sur quatre ans de séjours réels.</li>
+        <li><b>Il construit la grille des vacations</b>&nbsp;: qui opère, dans quelle salle et quelle demi-journée, à partir de la
+          demande réelle de chaque chirurgien, en gardant chaque jour du temps de salle pour les urgences.</li>
+        <li><b>Il optimise le planning</b>&nbsp;: une fonction de coût F additionne des pénalités (pics de lits et de places,
+          vacations à moitié vides, retards médicaux, dépassements de capacité, salles sans marge, écart à la date souhaitée).
+          Des métaheuristiques (recuit simulé, recherche tabou, algorithme génétique et leurs hybrides) cherchent le planning qui
+          la rend la plus petite.</li>
+        <li><b>Il teste sa robustesse</b>&nbsp;: il rejoue le planning jour par jour face aux imprévus (urgences, annulations, lits
+          fermés, séjours prolongés, refus des patients). Trois agents (bloc, lits, ambulatoire) s'adaptent ensemble, et un
+          score sur 100 note le résultat.</li>
+      </ul>
+    </div>
+
+    <div class="carte">
+      <h2>Deux modes d'affichage</h2>
+      <p>Le bouton placé sous le titre, en haut à gauche, permet de changer de mode à tout moment.</p>
+      <div class="grille2 modes-site">
+        <div><b>Médecin</b>
+          <p>Une interface simple pour l'utilisation courante&nbsp;: les 4 étapes ci-dessus, numérotées dans l'ordre du travail.
+            Les réglages y sont présentés en mots (priorité faible, normale ou forte) plutôt qu'en poids.</p>
+          <button class="bouton principal" data-aller-mode="medecin">Commencer en mode Médecin</button></div>
+        <div><b>Technicien</b>
+          <p>Tout le site, avec les explications techniques et mathématiques&nbsp;: simulation des imprévus, grille des vacations,
+            comparaison des méthodes et réglages avancés. Ses six onglets sont détaillés ci-dessous.</p>
+          <button class="bouton" data-aller-mode="technicien">Ouvrir le mode Technicien</button></div>
+      </div>
+    </div>
+
+    <div class="carte">
+      <h2>Les onglets du mode Technicien</h2>
+      <div class="onglets-site">
+        <div><b>Attribution patient</b>
+          <p>On saisit un nouveau patient&nbsp;: chirurgien, intervention, diagnostic, âge, sexe, anesthésie, date souhaitée et tolérance.
+            L'outil prédit sa durée et son séjour, essaie chacune de ses vacations possibles sans bouger les autres patients, et
+            propose jusqu'à trois dates sur des jours différents.</p>
+          <p>Pour chaque date&nbsp;: le remplissage de la vacation, les lits ou la place occupés, l'écart à la date souhaitée et
+            l'horaire prévu. Les explications détaillent le calcul en six étapes.</p>
+          <button class="lien-onglet" data-aller-onglet="attribution">Ouvrir l'onglet →</button></div>
+        <div><b>Planning</b>
+          <p>Le planning adopté, semaine par semaine&nbsp;: les lits occupés chaque nuit et les places ambulatoires chaque jour,
+            comparés à la cible et à la capacité, puis les patients de chaque vacation.</p>
+          <p>On peut déplacer ou déprogrammer un patient (l'effet de chaque déplacement est affiché), replacer les patients
+            sans vacation, et imprimer ou exporter vers Excel le programme opératoire&nbsp;: ordre de passage, convocation, SAS.</p>
+          <button class="lien-onglet" data-aller-onglet="planning">Ouvrir l'onglet →</button></div>
+        <div><b>Simulation et aléas</b>
+          <p>Le planning est rejoué jour par jour face aux imprévus&nbsp;: urgences réelles, annulations, lits fermés, durées
+            réelles, séjours prolongés, refus des patients et nouveaux patients qui arrivent. Les trois agents s'adaptent, et
+            un score de robustesse sur 100 (douze critères) note le résultat.</p>
+          <p>Quatre étapes&nbsp;: choisir la situation (semaines ordinaires, fermeture de 10 lits, crise), tester le planning
+            actuel, comparer les plannings de chaque méthode, puis simuler d'autres activités (surcharge, petite ou grande échelle).</p>
+          <button class="lien-onglet" data-aller-onglet="simulation">Ouvrir l'onglet →</button></div>
+        <div><b>Grille des vacations</b>
+          <p>L'emploi du temps hebdomadaire des salles&nbsp;: quel chirurgien opère, dans quelle salle, quelle demi-journée. On compare
+            l'ancienne grille de l'établissement et la grille proposée, construite en cinq étapes à partir de la demande.</p>
+          <p>On y voit la demande et l'offre de chaque chirurgien et la réserve d'urgences de chaque jour. On peut reconstruire
+            la grille (marge, période, réserve d'urgences) et choisir celle qu'utilise le planning.</p>
+          <button class="lien-onglet" data-aller-onglet="grille">Ouvrir l'onglet →</button></div>
+        <div><b>Patients initiaux</b>
+          <p>La liste des patients qui attendent une opération à l'ouverture. Ils sont inventés à partir de l'activité réelle
+            (chirurgien, intervention, diagnostic, âge, sexe), puis leur durée et leur séjour sont prédits.</p>
+          <p>On choisit le nombre de patients et de semaines, on peut en ajouter à la main et comparer la liste à la base.
+            Le bouton de calcul lance ensuite la comparaison des méthodes, dans l'onglet Technique.</p>
+          <button class="lien-onglet" data-aller-onglet="initiaux">Ouvrir l'onglet →</button></div>
+        <div><b>Technique</b>
+          <p>Les réglages avancés et leurs explications&nbsp;: la fonction objectif F (formule, termes et poids), les capacités et
+            les délais, la priorité médicale de chaque diagnostic, et le programme horaire des vacations.</p>
+          <p>On y compare les méthodes (glouton, recuit, tabou, génétique et hybrides) sur plusieurs graines avant d'adopter le
+            meilleur planning. On y trouve aussi les erreurs du modèle de prédiction et le choix des poids par défaut de F
+            (optimisation bayésienne).</p>
+          <button class="lien-onglet" data-aller-onglet="technique">Ouvrir l'onglet →</button></div>
+      </div>
+    </div>
+
+    <p class="discret pied-presentation">Données&nbsp;: base anonymisée de 14 649 séjours chirurgicaux, de 2019 à 2022&nbsp;; les patients
+      de l'ouverture sont inventés à partir de cette activité.<br>Projet fil rouge IA-Santé&nbsp;: Robin CURSENTE, David LANSADE,
+      Rafael LAZAR, Clément MORIN--BERTHON.</p>
+  </div>
+</section>
+
+<!-- ======================= RÉGLAGES (mode Médecin) ======================= -->
+<section id="reglages" class="page medecin-seul">
+  <div class="carte carte-info-mode">
+    <p>Cette interface est simplifiée pour une utilisation classique par un médecin. Pour avoir toutes les informations, choisissez le mode <b>« Technicien »</b>
+      en haut de la page, sous le titre. Il contient les explications techniques et mathématiques, les paramétrages avancés,
+      la comparaison des méthodes métaheuristiques et les simulations avec aléas.</p>
+    <button class="bouton" id="btn-vers-technicien">Passer en mode Technicien</button>
+  </div>
+  <div class="carte">
+    <h2>Préparer le planning du bloc en 4 étapes</h2>
+    <ol class="etapes-medecin">
+      <li><b>Réglages</b> (cette page) : capacités de l'hôpital, délais et priorités du planning.</li>
+      <li><b>Ouverture de l'hôpital</b> : la liste des patients qui attendent une opération à l'ouverture ; ajoutez-en si besoin, puis calculez le planning.</li>
+      <li><b>Planning</b> : lits et places occupés chaque jour, patients de chaque vacation, semaine par semaine.</li>
+      <li><b>Attribution patient</b> : un nouveau patient à programmer ; l'outil propose jusqu'à trois dates, la meilleure en premier.</li>
+    </ol>
+  </div>
+  <div class="grille2">
+    <div class="carte">
+      <h2>L'hôpital</h2>
+      <div class="champs-medecin" id="med-hopital"></div>
+    </div>
+    <div class="carte">
+      <h2>Délais</h2>
+      <div class="champs-medecin" id="med-delais"></div>
+      <details class="replie">
+        <summary>Fenêtre de recherche d'une date</summary>
+        <div class="champs-medecin" id="med-fenetre"></div>
+      </details>
+    </div>
+  </div>
+  <div class="carte">
+    <h2>Programme horaire des patients</h2>
+    <p class="legende-texte">Heures de convocation, de passage en SAS et d'entrée en salle de chaque patient, calculées après le planning.</p>
+    <div class="champs-medecin" id="med-horaires"></div>
+  </div>
+  <div class="carte">
+    <h2>Priorités du planning</h2>
+    <p class="legende-texte">Quand tout ne peut pas être respecté en même temps, l'outil privilégie ce qui a la priorité la plus forte.
+      Les dépassements de capacité (lits, places, durée des salles) sont très fortement pénalisés : l'outil les évite autant
+      que possible, mais ils ne sont pas interdits.</p>
+    <div id="med-priorites"></div>
+    <details class="replie" style="margin-top:12px">
+      <summary>Priorité médicale par type de diagnostic</summary>
+      <p class="legende-texte" style="margin-top:0">Au-delà du délai médical maximal, chaque jour de retard compte autant de fois que la priorité :
+        1 = normale, 2 = deux fois plus urgent. <span id="med-codes"></span></p>
+      <div id="med-chapitres" class="defile" style="max-height:360px"></div>
+    </details>
+  </div>
+  <div class="actions-bas">
+    <button class="bouton principal" id="btn-med-sauver">Enregistrer les réglages</button>
+    <button class="bouton" id="btn-med-defaut">Revenir aux valeurs par défaut</button>
+    <span class="discret" id="msg-med"></span>
+    <button class="bouton" id="btn-med-suite" style="margin-left:auto">Étape suivante : ouverture de l'hôpital →</button>
+  </div>
+</section>
+
+<!-- ======================= ATTRIBUTION ======================= -->
+<section id="attribution" class="page actif">
+  <div class="colonnes">
+    <form id="form-patient" class="carte formulaire" autocomplete="off">
+      <h2>Nouveau patient</h2>
+      <label>Chirurgien
+        <select name="praticien" id="f-praticien" required></select>
+      </label>
+      <label>Type d'intervention
+        <input name="type_interv" id="f-type" list="liste-types" required placeholder="ex. Prothese Totale Genou">
+      </label>
+      <datalist id="liste-types"></datalist>
+      <label>Diagnostic principal (CIM-10)
+        <input name="cim" id="f-cim" list="liste-cim" placeholder="ex. M17.1">
+      </label>
+      <datalist id="liste-cim"></datalist>
+      <div class="ligne2">
+        <label>Âge <input name="age" type="number" min="0" max="110" value="55" required></label>
+        <label>Sexe
+          <select name="sexe"><option value="1">Homme</option><option value="2">Femme</option></select>
+        </label>
+      </div>
+      <details class="replie">
+        <summary>Anesthésie, identifiant, hébergement imposé</summary>
+        <label>Anesthésie <select name="anesth_type" id="f-anesth"><option value="">Non renseignée</option></select></label>
+        <label>Locorégionale <select name="anesth_locoreg" id="f-locoreg"><option value="">Aucune</option></select></label>
+        <label>Nom ou identifiant (facultatif) <input name="nom" placeholder="ex. initiales"></label>
+        <div class="ligne2">
+          <label>Hébergement
+            <select name="forcer_ambu"><option value="">Prédit</option><option value="1">Ambulatoire</option><option value="0">Hospitalisé</option></select>
+          </label>
+          <label>Nuits imposées <input name="forcer_nuits" type="number" min="0" max="30" placeholder="prédit"></label>
+        </div>
+      </details>
+      <div class="ligne2">
+        <label>Date souhaitée <input name="date_souhait" id="f-souhait" type="date" required></label>
+        <label>Tolérance <input name="tolerance" id="f-tol" type="number" min="0" max="60">
+          <span class="discret" style="font-weight:400;font-size:11.5px;line-height:1.3">nombre de jours après la date souhaitée qu'on accepte sans pénalité</span></label>
+      </div>
+      <label>Date de la demande <input name="date_demande" id="f-demande" type="date"></label>
+      <button type="submit" class="bouton principal">Proposer des créneaux</button>
+      <p class="aide">Le moteur essaie toutes les vacations du chirurgien dans la fenêtre de dates du patient, de la date souhaitée
+        moins l'avance maximale à la date souhaitée plus la tolérance et le report maximal (jamais avant la fin du délai de préparation),
+        et garde celles qui lissent le mieux les lits et les places ambulatoires et qui regroupent les patients pour laisser des vacations vides.</p>
+    </form>
+
+    <div class="resultats">
+      <div id="zone-prediction"></div>
+      <div id="zone-propositions">
+        <div class="vide">Renseignez le patient puis cliquez sur « Proposer des créneaux ».
+          Les meilleures dates (jusqu'à trois : A, B et C) s'afficheront ici, avec leurs raisons.</div>
+      </div>
+    </div>
+  </div>
+  <div class="carte tech-seul">
+    <h2>Comment les dates sont proposées</h2>
+    <details class="fenetre" id="explications-attribution">
+      <summary><span class="quand-ferme">Afficher les explications</span><span class="quand-ouvert">Masquer les explications</span>
+        <span class="discret">— fenêtre de dates, vacations candidates, classement par F</span></summary>
+      <div class="contenu">
+        <p class="legende-texte" style="margin:6px 0">On n'utilise pas de métaheuristique ici mais simplement une insertion gloutonne appliquée à un seul
+          patient. Les patients déjà programmés ne bougent pas ; on essaie le nouveau patient dans chacune de ses vacations possibles.</p>
+        <h3>1. Prédiction</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Le modèle choisi dans l'onglet Technique prédit la durée opératoire µ ± σ, ambulatoire ou non, et le nombre de nuits.</li>
+          <li>Le diagnostic donne la priorité w<sub>i</sub> (tableau « Poids de retard par diagnostic »).</li>
+        </ul>
+        <h3>2. Fenêtre de dates du patient</h3>
+        <ul class="explications" style="max-height:none">
+          <li><b>Au plus tôt</b> : date souhaitée − avance maximale (<span data-param="avance_max"></span> j), mais jamais avant la fin
+            du délai de préparation (date de la demande + <span data-param="delai_preparation"></span> j) ni avant l'ouverture du bloc.</li>
+          <li><b>Au plus tard</b> : date souhaitée + tolérance (saisie dans le formulaire) + report maximal (<span data-param="retard_max"></span> j),
+            sans dépasser la fin de l'horizon (<span data-param="semaines_horizon"></span> semaines après l'ouverture).</li>
+          <li>Si la fenêtre est vide (par exemple hors de l'horizon), aucune date n'est proposée et un message l'explique.</li>
+        </ul>
+        <h3>3. Vacations candidates</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Les vacations de son chirurgien dans la fenêtre, assez longues pour l'opération et sa marge d'aléa :
+            durée de la vacation ≥ µ + z<sub>β</sub> σ (z<sub>β</sub> = <span data-param="z_beta"></span>).</li>
+          <li>Si aucune n'est assez longue : toutes les vacations du chirurgien dans la fenêtre.</li>
+          <li>S'il n'y en a aucune dans la fenêtre : toutes les vacations du chirurgien après la date au plus tôt, même au-delà de la date au plus tard.</li>
+        </ul>
+        <h3>4. Évaluation de chaque vacation</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Le patient est placé dans la vacation et on calcule F, la fonction objectif de l'onglet Technique, avec tous ses termes :
+            lissage des lits et des places, regroupement des patients, retard sur la limite médicale, écart à la date souhaitée,
+            dépassement des capacités et de la marge des salles.</li>
+          <li>La vacation est <b>faisable</b> si la marge d'aléa de la salle est respectée et qu'aucune capacité de lits ou de places
+            n'est dépassée ; sinon, elle porte le signe&nbsp;⚠.</li>
+        </ul>
+        <h3>5. Classement et choix des dates</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Les vacations faisables d'abord, puis par F croissante (celle qui fait le moins augmenter F en premier).</li>
+          <li><b>Date A</b> : la meilleure. <b>Dates B et C</b> : les suivantes, chacune un autre jour (une seule vacation par jour).
+            Trois dates au plus ; moins s'il y a moins de jours possibles.</li>
+          <li>Si aucune vacation n'est faisable, les dates proposées sont les moins mauvaises et un avertissement le signale.</li>
+        </ul>
+        <h3>6. Ce qu'affiche chaque date</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Le remplissage de la vacation avant et après l'ajout du patient.</li>
+          <li>Les lits occupés les nuits du séjour (barres, avec la cible) ou la place ambulatoire du jour.</li>
+          <li>L'écart à la date souhaitée, le retard éventuel sur la limite médicale et l'horaire prévu (convocation, SAS, entrée en salle).</li>
+          <li>« Choisir cette date » enregistre le patient dans le planning.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+  <div class="carte">
+    <div class="titre-carte"><h2>Derniers patients programmés par le médecin</h2>
+      <span class="discret" id="compte-planning"></span></div>
+    <div id="derniers"></div>
+  </div>
+</section>
+
+<!-- ======================= PATIENTS INITIAUX ======================= -->
+<section id="initiaux" class="page">
+  <div class="carte">
+    <div class="titre-carte"><h2>Patients à programmer à l'ouverture de l'hôpital</h2><span class="discret" id="ini-sous-titre"></span></div>
+    <p class="legende-texte medecin-seul">Pour préparer l'ouverture, l'outil invente les patients qui attendent une opération, à partir de l'activité réelle
+      de l'hôpital de 2019 à 2022 : chirurgien, intervention, diagnostic et date souhaitée. Leur durée d'opération et leur hébergement
+      (ambulatoire ou nombre de nuits) sont prédits. Vous pouvez supprimer ou ajouter des patients, puis calculer le planning.</p>
+    <p class="legende-texte tech-seul">Patients inventés, tirés dans les distributions de la base : chirurgien selon son activité en 2022, intervention selon ce chirurgien,
+      diagnostic selon l'intervention et le chirurgien, âge, sexe et anesthésie selon l'intervention, jour souhaité parmi les jours où il opère.
+      Leur durée, leur caractère ambulatoire et leurs nuits sont prédits par le modèle appris sur 2019-2022.
+      Supprimez ou ajoutez des patients, puis lancez le calcul du planning d'ouverture : les métaheuristiques attribuent une vacation à chacun.</p>
+    <div class="ligne-params">
+      <label>Nombre de patients (x) <input id="ini-x" type="number" min="10" max="3000" step="10"></label>
+      <label>Semaines <input id="ini-sem" type="number" min="1" max="16"></label>
+      <label class="tech-seul">Graine aléatoire <input id="ini-graine" type="number" min="0"></label>
+      <button class="bouton" id="btn-generer" style="margin-bottom:10px">Générer x nouveaux patients</button>
+      <button class="bouton principal tech-seul" id="btn-envoyer" style="margin-bottom:10px">Calculer le planning d'ouverture avec ces patients →</button>
+      <button class="bouton principal medecin-seul" id="btn-med-calculer" style="margin-bottom:10px">Calculer le planning d'ouverture →</button>
+    </div>
+    <div class="medecin-seul">
+      <p class="aide" style="margin-top:0">Le calcul place chaque patient dans une vacation de son chirurgien. Il dure une quinzaine de secondes
+        et remplace le planning actuel.</p>
+      <p class="aide" style="margin-top:4px;font-size:11.5px;font-weight:400">Méthode utilisée : hybride Génétique → Recuit (algorithme génétique, puis recuit simulé), meilleur de 3 essais.</p>
+      <div class="progression" id="prog-med" hidden><div class="barre"><div></div></div><span></span></div>
+    </div>
+    <div class="charge-flux tech-seul" id="ini-activite"></div>
+  </div>
+  <div class="carte">
+    <h2>Résumé de la liste</h2>
+    <div class="tuiles" id="ini-kpi"></div>
+  </div>
+  <div class="grille2 tech-seul">
+    <div class="carte"><h2>Diagnostics les plus fréquents : liste générée / base</h2>
+      <p class="legende-texte">Part de chaque code CIM (3 caractères) dans la liste et dans la base (séjours programmés).</p>
+      <div class="graphe haut"><canvas id="g-ini-diag"></canvas></div></div>
+    <div class="carte"><h2>Chirurgiens : liste générée / activité 2022</h2>
+      <p class="legende-texte">Part des patients de chaque chirurgien.</p>
+      <div class="graphe haut"><canvas id="g-ini-chir"></canvas></div></div>
+  </div>
+  <div class="carte">
+    <details class="replie" id="ini-ajout">
+      <summary>Ajouter un patient à la liste</summary>
+      <form id="form-ini" autocomplete="off">
+        <div class="ligne3">
+          <label>Chirurgien <select name="praticien" id="ini-praticien" required></select></label>
+          <label>Type d'intervention <input name="type_interv" list="liste-types" required></label>
+          <label>Diagnostic (CIM-10) <input name="cim" list="liste-cim"></label>
+          <label>Âge <input name="age" type="number" min="0" max="110" value="55" required></label>
+          <label>Sexe <select name="sexe"><option value="1">Homme</option><option value="2">Femme</option></select></label>
+          <label>Date souhaitée <input name="date_souhait" id="ini-date" type="date" required></label>
+          <label>Anesthésie <select name="anesth_type" id="ini-anesth"><option value="">Non renseignée</option></select></label>
+          <label>Nom ou identifiant <input name="nom"></label>
+        </div>
+        <button type="submit" class="bouton principal">Ajouter à la liste</button>
+      </form>
+    </details>
+    <div class="barre-outils">
+      <label style="flex:1;max-width:420px;margin:0">Filtrer la liste <input id="ini-filtre" placeholder="chirurgien, intervention, diagnostic, date…"></label>
+      <span class="discret" id="ini-compte"></span>
+    </div>
+    <div id="ini-table" class="defile" style="max-height:620px"></div>
+  </div>
+</section>
+
+<!-- ======================= PLANNING ======================= -->
+<section id="planning" class="page">
+  <div id="alerte-planning"></div>
+  <div class="tuiles" id="kpi-planning"></div>
+  <div class="grille2">
+    <div class="carte"><h2>Lits occupés chaque nuit</h2><div class="tuiles tuiles-carte" id="kpi-lits"></div>
+      <p class="legende-texte" id="leg-lits"></p><div class="graphe"><canvas id="g-lits"></canvas></div></div>
+    <div class="carte"><h2>Places ambulatoires occupées chaque jour</h2><div class="tuiles tuiles-carte" id="kpi-places"></div>
+      <p class="legende-texte" id="leg-places"></p><div class="graphe"><canvas id="g-places"></canvas></div></div>
+  </div>
+  <div class="carte">
+    <div class="titre-carte">
+      <h2>Vacations de la semaine</h2>
+      <div class="navsem">
+        <button class="bouton" id="sem-prec">←</button>
+        <span id="sem-libelle"></span>
+        <button class="bouton" id="sem-suiv">→</button>
+      </div>
+    </div>
+    <div id="semaine"></div>
+    <p class="aide">Cliquez sur « modifier » sous un patient pour le déplacer à une autre date ou le déprogrammer.</p>
+  </div>
+  <!-- déplacer ou déprogrammer un patient à la main : ouvert par « modifier » dans les vacations de la semaine -->
+  <div class="carte" id="carte-modif-patient" hidden>
+    <div class="titre-carte"><h2 id="modif-titre">Déplacer ou déprogrammer un patient</h2>
+      <button class="bouton" id="btn-fermer-modif">Fermer</button></div>
+    <div id="modif-patient"></div>
+  </div>
+  <div class="carte">
+    <h2>Programme opératoire</h2>
+    <p class="legende-texte">Pour chaque jour et chaque salle : l'ordre de passage, la convocation, le passage en SAS, l'entrée et la sortie
+      de salle, et l'hébergement de chaque patient. À imprimer (ou à enregistrer en PDF depuis la fenêtre d'impression), ou à ouvrir dans Excel.</p>
+    <div class="ligne-params">
+      <label>Du <input type="date" id="prog-debut"></label>
+      <label>Au <input type="date" id="prog-fin"></label>
+      <button class="bouton principal" id="btn-prog-imprimer" style="margin-bottom:10px">Imprimer ou enregistrer en PDF</button>
+      <button class="bouton" id="btn-prog-excel" style="margin-bottom:10px">Télécharger pour Excel</button>
+    </div>
+    <p class="aide" style="margin-top:0">Par défaut, la semaine affichée ci-dessus (du lundi au vendredi). Les horaires sont ceux prévus aujourd'hui :
+      ils peuvent encore changer si d'autres patients rejoignent une vacation (option « Réoptimiser l'ordre de passage »).</p>
+  </div>
+  <div class="actions-bas">
+    <button class="bouton" id="btn-replacer">Replacer les patients sans vacation</button>
+    <button class="bouton danger tech-seul" id="btn-vider">Vider le planning</button>
+  </div>
+</section>
+
+<!-- ======================= SIMULATION ET ALÉAS ======================= -->
+<section id="simulation" class="page">
+  <div class="carte">
+    <h2>Le planning face aux imprévus</h2>
+    <p class="intro-sim">Le planning est calculé à l'avance. Dans la réalité, des imprévus arrivent : des urgences, des annulations,
+      des lits fermés, des opérations plus longues que prévu, des patients qui restent une nuit de plus
+      ou qui refusent la nouvelle date qu'on leur propose.
+      On rejoue le planning adopté jour après jour avec ces imprévus et on compare deux façons de réagir.</p>
+    <div class="deux-facons">
+      <div class="facon facon-sans"><div class="facon-titre">Sans coordination</div>
+        <p>Chaque service subit les imprévus de son côté. S'il manque des lits une nuit, on fait avec.</p></div>
+      <div class="facon facon-avec"><div class="facon-titre">Avec les agents</div>
+        <p>Trois agents se parlent : le <b>Bloc</b>, les <b>Lits</b> et l'<b>Ambulatoire</b>. Quand une nuit va manquer de lits, l'agent Lits
+          demande au Bloc de décaler un patient qui n'est pas encore convoqué.</p></div>
+    </div>
+    <details class="fenetre" id="explications-sma">
+      <summary><span class="quand-ferme">En savoir plus</span><span class="quand-ouvert">Masquer</span>
+        <span class="discret">— comment les agents et les imprévus sont simulés</span></summary>
+      <div class="contenu">
+        <h3>Les trois agents (bibliothèque mesa)</h3>
+        <ul class="explications" style="max-height:none">
+          <li><b>Bloc</b> : opère les patients de chaque jour, dans l'ordre de passage du programme horaire (onglet Planning).
+            Il ne commence pas une opération qui finirait trop tard : le patient est alors reporté.
+            Il propose des dates où l'opération tient dans la vacation, et remplit un créneau libéré par une annulation en avançant un patient.</li>
+          <li><b>Lits</b> : connaît les lits disponibles chaque nuit. Il accepte une date seulement si toutes les nuits du séjour gardent un lit libre ;
+            quand une nuit manque de lits, il demande au Bloc de décaler un patient.</li>
+          <li><b>Ambulatoire</b> : fait la même chose pour les places ambulatoires de chaque jour.</li>
+          <li>Un patient opéré dans les 3 prochains jours est déjà convoqué : on ne le déplace plus.</li>
+        </ul>
+        <h3>Comment un agent décide</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Quand il faut déplacer un patient (nuit qui va manquer de lits, jour sans place ambulatoire, patient reporté), le Bloc calcule
+            pour chacune de ses dates possibles l'effet du déplacement sur <b>F</b>, la fonction objectif du planning. Il propose ses dates
+            de celle qui fait le moins augmenter F à celle qui la fait le plus augmenter, d'abord dans la fenêtre de dates du patient.</li>
+          <li>F est calculée à l'instant de la décision : lits réellement ouverts, urgences déjà arrivées et, pour les nuits à venir, profil moyen des urgences.
+            Tous ses termes comptent : écart des lits et des places à leur cible (dispersion de l'occupation), regroupement des patients (vacations vides favorisées), retard, écart à la date souhaitée, dépassements.</li>
+          <li>L'agent <b>Lits</b> accepte une date dès que chaque nuit du séjour garde au moins un lit libre. L'agent <b>Ambulatoire</b> fait de même avec les places.</li>
+          <li>Le Bloc appelle ensuite le patient : il peut refuser une date plus tôt ou plus tard que la sienne (étape 1, « Refus d'une nouvelle date »).</li>
+          <li>La première date acceptée par l'agent d'hébergement puis par le patient est retenue : c'est donc celle qui <b>dégrade le moins F</b> parmi les dates acceptables.
+            Si aucune date n'est acceptée pour un patient reporté ou un nouveau patient (ou si plus aucune vacation ne garde la marge de sécurité de la salle),
+            le Bloc le place quand même là où F augmente le moins (conflit).</li>
+          <li>Créneau libéré par une annulation : le Bloc y avance le patient plus tardif qui fait le moins augmenter F, seulement si
+            F n'augmente pas de plus de 5 (réglage « hausse de F tolérée pour combler une annulation », étape 1). 5, c'est par exemple une nuit
+            qui passe de 2 à 3 lits d'écart à la cible : on remplit le bloc sans abîmer le lissage des lits et des places. Sinon, le créneau reste libre.</li>
+        </ul>
+        <h3>Les imprévus</h3>
+        <ul class="explications" style="max-height:none">
+          <li><b>Urgences</b> : les urgences réelles de la base (hors COVID) sur une période de même durée tirée au hasard.</li>
+          <li><b>Annulations</b> : un patient sur 20 annule, quelques jours avant son opération.</li>
+          <li><b>Lits fermés</b> : des lits indisponibles pendant une période (fermeture d'été, travaux), annoncés 3 jours avant.</li>
+          <li><b>Opérations plus longues</b> : la durée réelle varie autour de la durée prévue µ, avec l'écart-type σ prédit.</li>
+          <li><b>Séjours prolongés</b> : 15 % des patients hospitalisés restent une nuit de plus.</li>
+          <li><b>Refus des patients</b> : un patient à qui l'on propose une nouvelle date peut la refuser (taux réglables à l'étape 1).
+            Il garde alors sa date ; s'il a été déprogrammé, on lui propose la date suivante.</li>
+          <li><b>Nouveaux patients</b> (option de la situation, étape 1) : chaque jour ouvré, de nouvelles demandes arrivent, au rythme moyen de la base.
+            Le Bloc leur cherche une date comme pour un patient reporté : avec les agents, la date acceptée par les lits qui fait le moins augmenter F ;
+            sans coordination, le créneau libre le plus proche de la date souhaitée, sans demander les lits.</li>
+        </ul>
+        <p class="aide">Ces valeurs se changent dans « Réglages avancés ». La simulation ne modifie pas le planning enregistré.
+          Les résultats détaillés comparent aussi une troisième façon de réagir : recalculer tout le planning à chaque imprévu
+          (réoptimisation centralisée), plus lente.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="carte" id="carte-robustesse">
+    <h2>Définir ce qu'est un planning robuste <span class="discret">— score de robustesse sur 100</span></h2>
+    <details class="fenetre" id="fenetre-robustesse">
+      <summary><span class="quand-ferme">En savoir plus</span><span class="quand-ouvert">Masquer</span>
+        <span class="discret">— propriétés d'un planning robuste, formule du score, critères et poids</span></summary>
+      <div class="contenu">
+    <p class="intro-sim" style="max-width:none">Un planning est <b>robuste</b> s'il reste sûr, stable et tenable quand les imprévus arrivent,
+      sans devoir être beaucoup modifié, et s'il garde les qualités demandées par le médecin.<br>On le juge après la simulation, sur quatre points :</p>
+    <div class="proprietes-robustesse">
+      <div class="propriete"><div class="facon-titre">Sûr pour les patients</div>
+        <p>Les lits et les places ambulatoires suffisent, chaque nuit et chaque jour d'ouverture.</p></div>
+      <div class="propriete"><div class="facon-titre">Stable pour les patients</div>
+        <p>Peu de patients déprogrammés le jour même ou changés de date, et chacun garde une date.</p></div>
+      <div class="propriete"><div class="facon-titre">Fidèle aux objectifs du médecin</div>
+        <p>Le planning exécuté garde des lits et des places ambulatoires lissés et des vacations bien remplies.</p></div>
+      <div class="propriete"><div class="facon-titre">Tenable pour le bloc</div>
+        <p>Peu de vacations qui finissent en retard, peu de temps perdu après une annulation, et les vacations libérées restent libres.</p></div>
+    </div>
+    <div class="formule">
+      <div style="font-weight:700;color:var(--texte);text-align:left;margin-top:4px">Score de robustesse d'un planning</div>
+      <div class="formule-tex" data-tex="R \;=\; 100 \;-\; \sum_{k} w_k \,\min\!\Big(1,\; \frac{x_k}{s_k}\Big)"></div>
+      <p class="aide">x<sub>k</sub> : valeur du critère k pendant la simulation, ramenée à 100 patients du planning
+        (qualité du planning exécuté : sa valeur, en lits ou places d'écart à la cible et en points de remplissage)<br>
+        s<sub>k</sub> : seuil critique, où le critère a perdu tous ses points<br>w<sub>k</sub> : poids du critère (total : 100)<br>
+        R = 100 : aucun incident. Chaque incident (pour 100 patients) coûte w<sub>k</sub> / s<sub>k</sub> points, jusqu'au seuil.</p>
+    </div>
+    <div id="def-robustesse"></div>
+    <details class="fenetre" id="pourquoi-robustesse">
+      <summary><span class="quand-ferme">Pourquoi ces poids</span><span class="quand-ouvert">Masquer</span>
+        <span class="discret">— hiérarchie des critères et choix des seuils</span></summary>
+      <div class="contenu">
+        <h3>Hiérarchie des critères</h3>
+        <ul class="explications" style="max-height:none">
+          <li><b>La sécurité d'abord (43,7 points)</b> : un lit qui manque, c'est un patient sans lit (transfert, lit de couloir,
+            opération annulée au dernier moment). C'est l'incident le plus cher : 3,5 points pour 100 patients (35 points au plus).
+            Une place ambulatoire qui manque un jour coûte 1,74 point.</li>
+          <li><b>Le parcours des patients ensuite (24,3 points)</b> : déprogrammer le jour même un patient à jeun et préparé (1,04 point)
+            est six fois plus grave que le prévenir à l'avance d'un changement de date (0,175 point) : ce patient a accepté sa nouvelle date.
+            Un patient placé en conflit est un échec du planning (1,9 point, un peu plus de la moitié d'un lit manquant) : faute de mieux, il est
+            placé dans une vacation qui ne garde plus sa marge de sécurité, qui risque de déborder. Un patient sans date avant la fin de
+            l'horizon du planning ne coûte que 0,09 point : il passe au planning suivant, et il aurait une date si l'on allongeait l'horizon
+            (réglage « Horizon » de l'onglet Technique). Avec de nouveaux patients, ce sont surtout ceux des chirurgiens déjà saturés
+            et ceux qui arrivent dans les dernières semaines.</li>
+          <li><b>Puis la qualité du planning exécuté (17,3 points)</b> : ce sont les demandes du médecin, celles que F optimise : lisser les lits
+            (W<sub>1</sub>) et les places ambulatoires (W<sub>1</sub>′), bien remplir les vacations utilisées (W<sub>2</sub>). On mesure ce que
+            l'hôpital obtient à la fin, en valeur absolue : 1,73 point par lit d'écart à la cible des lits (6,9 points au plus, atteints à 4 lits
+            d'écart), 0,65 point par place d'écart à la cible des places (2,6 points au plus, à 4 places), 0,39 point par point de remplissage
+            sous 85 % (7,8 points au plus, à 65 %). Même un bon planning y perd plusieurs points : en semaines ordinaires, l'écart à la
+            cible des lits exécutés est d'environ 2 lits et le remplissage des vacations utilisées d'environ 73 %.</li>
+          <li><b>L'organisation du bloc enfin (14,7 points)</b> : une vacation qui finit en retard (heures supplémentaires) coûte 0,52 point,
+            100 minutes de bloc perdues après une annulation 0,69 point ; elles pèsent sur le personnel et sur le coût, pas sur la sécurité.
+            Rouvrir une vacation libérée oblige le praticien à revenir alors qu'on l'avait libéré (2,6 points au plus).</li>
+          <li><b>Équivalences</b> : 1 lit manquant une nuit (3,5 points) coûte à peu près autant que 2 patients placés en conflit, 3 patients
+            déprogrammés le jour même, 20 patients prévenus d'un changement de date, 7 vacations qui finissent en retard, 500 minutes de bloc perdues,
+            9 points de remplissage sous 85 % ou 2 lits d'écart à la cible des lits.</li>
+          <li><b>Pourquoi 35 points pour les lits, avec le même seuil</b> : un lit manquant coûte plus cher (3,5 au lieu de 2,5 points), sans que
+            le critère atteigne son plafond en crise. Avec un seuil plus bas, la stratégie sans coordination perdrait déjà tous ses points
+            en crise, et le score ne verrait plus que les agents évitent près de deux fois plus de lits manquants. Les autres critères ont
+            été réduits dans la même proportion (×65/75), ce qui garde leur hiérarchie.</li>
+        </ul>
+        <h3>Pourquoi un seuil critique s<sub>k</sub></h3>
+        <p class="legende-texte">Le seuil est la valeur à partir de laquelle la situation est jugée inacceptable
+            (par exemple 10 lits manquants pour 100 patients, soit environ 1 lit qui manque chaque nuit). Il sert à trois choses :</p>
+        <ul class="explications" style="max-height:none">
+  <li><b>Mettre les critères sur la même échelle.</b> Ils n'ont pas la même unité (lits × nuits, patients, minutes, lits d'écart, points de remplissage) :
+                x<sub>k</sub> / s<sub>k</sub> les transforme tous en une part du seuil, sans unité, entre 0 et 1.
+                Exemple pour 100 patients : 5 lits manquants = 5 / 10 = 0,5 du seuil, donc 35 × 0,5 = 17,5 points perdus ;
+                400 minutes de bloc vides = 400 / 1 000 = 0,4 du seuil, donc 6,9 × 0,4 ≈ 2,8 points perdus.</li>
+              <li><b>Séparer importance et tolérance.</b> Le poids w<sub>k</sub> dit combien de points un critère peut faire perdre au plus ;
+                le seuil dit combien d'incidents il faut pour les perdre tous. Le prix d'un incident est w<sub>k</sub> / s<sub>k</sub>.</li>
+              <li><b>Borner le score.</b> Au-delà du seuil, min(1, …) arrête la perte : le critère a perdu ses w<sub>k</sub> points, pas plus.
+                Le score reste entre 0 et 100, et une catastrophe sur un critère ne cache pas les autres.</li>
+        </ul>
+        <p class="legende-texte">C'est aussi une valeur concrète, qui se discute facilement avec les médecins et les cadres du bloc.
+            Les ordres de grandeur des seuils sont donnés pour 600 patients sur 8 semaines.</p>
+        <h3>Choix de modélisation</h3>
+        <ul class="explications" style="max-height:none">
+          <li><b>Pour 100 patients</b> : les compteurs sont ramenés à 100 patients du planning (nouveaux patients compris), pour comparer
+            des plannings et des scénarios de tailles différentes. Avec 600 patients, un incident coûte donc 6 fois moins de points.
+            Les critères de qualité du planning exécuté ne le sont pas : un écart à la cible ou un remplissage ne dépend pas du nombre de patients.</li>
+          <li><b>F n'entre pas dans le score, mais les objectifs du médecin oui</b> : F juge le planning prévu (comparé dans l'onglet
+            Technique), le score le planning exécuté. Le lissage et le remplissage entrent dans le score par leur niveau dans le planning
+            exécuté, en valeur absolue. On peut ainsi vérifier si le planning le mieux noté par F est aussi le plus robuste (étape 3).</li>
+          <li><b>Qualité du planning exécuté sur les patients programmés seulement</b> : comme dans F, les urgences ne comptent pas dans le
+            lissage ; leur effet sur les lits est déjà compté par les lits manquants. Le planning exécuté comprend les patients déplacés,
+            annulés, reportés, les séjours prolongés et les nouveaux patients. Le lissage est mesuré comme dans F :
+            écart quadratique moyen à la cible proportionnelle au personnel, toutes les nuits pour les lits, les jours d'ouverture pour les places ;
+            le remplissage est celui des vacations qui ont au moins un patient (durées réelles pour le planning exécuté).</li>
+          <li><b>Calcul de l'écart à la cible</b> : écart quadratique moyen entre l'occupation du planning exécuté et sa cible.
+            Pour les lits :
+            <div class="formule-tex" data-tex="\text{écart}_{\text{lits}} = \sqrt{\frac{1}{T}\sum_{t=1}^{T}\left(n_t - n^*_t\right)^2} \qquad\text{avec}\qquad n^*_t = \frac{E_t}{\sum_{s} E_s}\,\sum_{s} n_s"></div>
+            T : nombre de nuits de l'horizon planifié ; n<sub>t</sub> : lits occupés la nuit t dans le planning exécuté ;
+            E<sub>t</sub> : 1 en semaine, α le week-end et les jours fériés.<br>
+            Pour les places ambulatoires, on ne compte que les N<sub>O</sub> jours d'ouverture (o<sub>t</sub> = 1) :
+            <div class="formule-tex" data-tex="\text{écart}_{\text{places}} = \sqrt{\frac{1}{N_O}\sum_{t\,:\,o_t=1}\left(a_t - a^*_t\right)^2} \qquad\text{avec}\qquad a^*_t = \frac{o_t\,E_t}{\sum_{s} o_s E_s}\,\sum_{s} a_s"></div></li>
+          <li><b>Un arbitrage assumé</b> : déplacer des patients pour libérer des lits (fermeture, crise) protège la sécurité mais dégrade
+            forcément le lissage. Le score arbitre entre les deux : jusqu'à 43,7 points pour la sécurité (35 pour les lits), 6,9 pour le lissage des lits.</li>
+          <li><b>Refus des patients</b> : un refus n'est pas un critère du score, car il dépend du patient et pas du planning.
+            Ses conséquences y sont : moins de lits libérés, patients sans solution ou placés en conflit, créneaux libérés non recomblés.</li>
+          <li><b>Places ambulatoires</b> : seuls les jours d'ouverture comptent. Les patients programmés n'y passent jamais un jour fermé,
+            mais quelques urgences ambulatoires arrivent le week-end : 39 sur 804 selon la BDD (2019 à 2022, hors mois COVID).
+            Elles ne dépendent pas du planning et ne sont donc pas comptées.</li>
+        </ul>
+      </div>
+    </details>
+    <p class="aide">Le score est calculé pour chaque simulation et chaque façon de réagir, aux étapes 2, 3 et 4
+      (aux étapes 3 et 4, c'est la moyenne des simulations).</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="carte">
+    <h2><span class="num-etape">1</span> Choix de la situation <span class="discret">— Paramétrage de la simulation</span></h2>
+    <h3 class="sous-section">Choix des aléas</h3>
+    <div class="situations">
+      <button class="situation" data-situation="ordinaires"><span class="sit-titre">Semaines ordinaires</span>
+        <span class="sit-texte">urgences, quelques annulations, des opérations plus longues et des séjours prolongés</span></button>
+      <button class="situation choisie" data-situation="fermeture"><span class="sit-titre">Fermeture de 10 lits</span>
+        <span class="sit-texte">la même chose, plus 10 lits fermés pendant 2 semaines (fermeture d'été)</span></button>
+      <button class="situation" data-situation="crise"><span class="sit-titre">Crise</span>
+        <span class="sit-texte">2 fois plus d'urgences, 10 % d'annulations, 12 lits fermés pendant 3 semaines, 25 % de séjours prolongés</span></button>
+    </div>
+    <details class="replie">
+      <summary>Réglages avancés</summary>
+      <div class="ligne-params" id="p-aleas"></div>
+    </details>
+    <h3 class="sous-section separee">Refus d'une nouvelle date par le patient</h3>
+    <p class="aide" style="margin: 2px 0 14px">Un patient n'accepte pas forcément la nouvelle date qu'on lui propose.
+      Chaque fois que sa date change, il peut la refuser : plus souvent une date plus tôt (il doit s'organiser en quelques jours)
+      qu'une date plus tard. Ces taux sont des hypothèses : la base ne dit pas combien de patients refusent.</p>
+    <div class="ligne-params" id="p-refus"></div>
+    <details class="fenetre" id="fenetre-refus">
+      <summary>Refus des patients <span class="discret">— quand le patient est appelé, et ce qui se passe s'il refuse</span></summary>
+      <div class="contenu"><div class="aide">
+        <p><b>Quand le patient est appelé</b> : seulement si sa date change. Une autre salle le même jour ne change rien pour lui,
+          et la première date d'un nouveau patient n'est pas un changement. Avec les agents, le Bloc appelle le patient
+          après l'accord de l'agent Lits ou Ambulatoire.</p>
+        <p><b>Le tirage</b> : pour chaque patient et chaque jour proposé, la réponse est tirée au hasard avec la graine de la simulation,
+          comme les autres imprévus. Les trois façons de réagir rencontrent donc les mêmes refus. Une date refusée n'est plus reproposée à ce patient.</p>
+        <p><b>Si le patient refuse :</b></p>
+        <ul>
+          <li><b>Décalage pour libérer un lit ou une place</b> (avec les agents) : il garde sa date, et l'agent Lits ou Ambulatoire
+            demande à un autre patient.</li>
+          <li><b>Créneau libéré par une annulation</b> (avec les agents) : l'avance est proposée au patient suivant.</li>
+          <li><b>Patient déprogrammé le jour même</b> : il doit être réopéré. On lui propose la date suivante, jusqu'à une date qu'il accepte,
+            quitte à le placer en conflit. S'il les refuse toutes, il reste sans solution.</li>
+          <li><b>Réoptimisation centralisée</b> : le recalcul exclut les dates déjà refusées. Un patient déplacé qui refuse sa nouvelle date
+            garde l'ancienne ; s'il a été déprogrammé, il prend la date qu'il accepte où F augmente le moins.</li>
+        </ul>
+        <p>Les refus sont comptés dans le détail des résultats (étapes 2 et 3) : nouvelles dates refusées, plus tôt ou plus tard,
+          et patients qui en ont refusé au moins une. Ils ne sont pas un critère du score de robustesse, mais leurs conséquences le sont.</p>
+      </div></div>
+    </details>
+    <h3 class="sous-section separee">Flux de nouveaux patients</h3>
+    <div class="ligne-params ligne-flux">
+      <label class="case"><input type="checkbox" id="flux-actif"> Ajouter de nouveaux patients pendant la simulation</label>
+      <label><span>Nouveaux patients par jour ouvré</span><input type="number" id="flux-par-jour" min="0" step="0.1" value="3.2"></label>
+    </div>
+    <p class="charge-flux" id="flux-charge"></p>
+    <details class="fenetre" id="fenetre-flux">
+      <summary>Ajout de nouveaux patients en flux <span class="discret">— comment ils arrivent pendant la simulation</span></summary>
+      <div class="contenu"><div class="aide" id="flux-aide"></div></div>
+    </details>
+    <h3 class="sous-section separee">Vacations libérées</h3>
+    <p class="aide">La fonction objectif favorise la libération des vacations : elle regroupe les patients pour laisser des vacations
+      entièrement vides. On peut donc choisir ici de les maintenir vides (le praticien concerné n'a alors pas à revenir à l'hôpital) ou non.
+      Une vacation libérée est une vacation sans aucun patient au début de la simulation.</p>
+    <div class="choix-liberees">
+      <label class="case"><input type="radio" name="liberees" value="utilisables">
+        <span><b>Utilisables</b> comme les autres vacations</span></label>
+      <label class="case"><input type="radio" name="liberees" value="dernier_recours" checked>
+        <span><b>En dernier recours</b> : rouvertes seulement si aucune autre vacation du chirurgien ne peut accueillir le patient</span></label>
+      <label class="case"><input type="radio" name="liberees" value="fermees">
+        <span><b>Maintenues vides</b> : jamais rouvertes, le praticien ne revient pas</span></label>
+    </div>
+    <details class="fenetre" id="fenetre-liberees">
+      <summary>En dernier recours <span class="discret">— comment les vacations libérées sont rouvertes</span></summary>
+      <div class="contenu"><div class="aide" id="liberees-aide">
+        <p>Quand un patient doit recevoir une date (patient reporté, déplacé pour libérer des lits ou des places, nouveau patient),
+          le bloc cherche dans cet ordre parmi les vacations de son chirurgien :</p>
+        <ol>
+          <li>les vacations <b>déjà utilisées</b> qui gardent la marge de sécurité de la salle, d'abord dans la fenêtre de dates du patient, puis en dehors ;</li>
+          <li>seulement ensuite, les <b>vacations libérées</b> (dans la fenêtre, puis en dehors) ;</li>
+          <li>en tout dernier, un placement sans la marge de sécurité (conflit), de préférence dans une vacation déjà utilisée.</li>
+        </ol>
+        <p><b>Avec les agents</b> : le bloc propose d'abord toutes les dates du point 1, de celle qui fait le moins augmenter F à celle qui
+          la fait le plus augmenter. Une vacation libérée n'est proposée que si l'agent Lits ou Ambulatoire a refusé toutes les autres.</p>
+        <p><b>Sans coordination</b> : le bloc prend la date libre la plus proche, mais parmi les vacations du point 1 tant qu'il y en a. S'il doit en venir au point 3, c'est aussi un conflit, compté comme avec les agents.</p>
+        <p><b>Réoptimisation centralisée</b> : l'insertion suit le même ordre, et le recalcul du planning ne déplace jamais un patient
+          vers une vacation libérée (un patient déjà placé dans une vacation rouverte peut y rester).</p>
+        <p>Une fois rouverte (un patient y est placé), la vacation compte comme une vacation déjà utilisée : le praticien vient de toute
+          façon, elle est donc remplie avant d'en rouvrir une autre, le recalcul centralisé peut y placer des patients, et un créneau
+          laissé par une annulation y est recomblé.</p>
+      </div></div>
+    </details>
+    <div class="actions-bas">
+      <button class="bouton principal" id="btn-enregistrer-situation">Enregistrer la situation</button>
+      <span id="msg-situation"></span>
+    </div>
+  </div>
+
+  <div class="carte" id="carte-resultat-sim">
+    <h2><span class="num-etape">2</span> Notre planning est-il robuste ? <span class="discret">— Test de robustesse du planning actuel</span></h2>
+    <p class="legende-texte">On rejoue le planning actuel (onglet Planning) avec les imprévus de la situation enregistrée à l'étape 1,
+      sans coordination puis avec les agents.</p>
+    <div class="actions-bas">
+      <button class="bouton principal" id="btn-simuler">Lancer la simulation sur le planning actuel</button>
+      <span class="discret" id="msg-sim"></span>
+    </div>
+    <div id="resultats-sim"></div>
+  </div>
+
+  <div class="carte">
+    <h2><span class="num-etape">3</span> Quel planning résiste le mieux ? <span class="discret">— Test de robustesse de chaque méthode métaheuristique (dans le scénario actuel)</span></h2>
+    <p class="legende-texte">On prend le meilleur planning de chaque méthode de la dernière comparaison (onglet Technique) et on rejoue
+      plusieurs fois la situation choisie, avec des imprévus différents à chaque fois. Le planning le mieux noté n'est pas forcément
+      celui qui résiste le mieux.</p>
+    <div class="actions-bas">
+      <button class="bouton principal" id="btn-robustesse">Comparer les plannings</button>
+      <label class="en-ligne">Nombre de simulations <input id="rob-nb" type="number" min="2" max="200" value="20"></label>
+      <div class="progression" id="prog-rob" hidden><div class="barre"><div></div></div><span></span></div>
+    </div>
+    <div id="resultats-rob"></div>
+  </div>
+
+  <div class="carte">
+    <h2><span class="num-etape">4</span> Et si l'activité changeait ? <span class="discret">— Simulation de différents scénarios</span></h2>
+    <p class="legende-texte"><b>Cette partie sert uniquement à comparer les métaheuristiques</b> : laquelle donne le planning le plus robuste selon le scénario.
+      Elle ne modifie ni le planning adopté ni la liste des patients initiaux.</p>
+    <p class="legende-texte">Pour chaque scénario, on invente une nouvelle liste de patients, on calcule le planning avec chaque méthode cochée, puis on le rejoue avec des imprévus,
+      sans coordination et avec les agents.</p>
+    <div class="ligne-params choix-methodes" id="sc-choix"></div>
+    <details class="replie">
+      <summary>Réglages avancés</summary>
+      <div class="ligne-params choix-methodes" id="sc-methodes"></div>
+      <div class="ligne-params">
+        <label>Budget de calcul (évaluations) <input id="sc-budget" type="number" min="1000" step="10000" value="100000"></label>
+        <label>Simulations par planning <input id="sc-nb" type="number" min="1" max="100" value="10"></label>
+      </div>
+    </details>
+    <div class="actions-bas">
+      <button class="bouton principal" id="btn-scenarios">Lancer les scénarios</button>
+      <div class="progression" id="prog-sc" hidden><div class="barre"><div></div></div><span></span></div>
+    </div>
+    <div id="resultats-sc"></div>
+  </div>
+</section>
+
+<!-- ======================= GRILLE ======================= -->
+<section id="grille" class="page">
+  <div class="carte">
+    <div class="titre-carte">
+      <h2>Emploi du temps hebdomadaire des salles</h2>
+      <div class="segments" id="choix-grille">
+        <button data-g="actuelle" class="actif">Ancienne grille</button>
+        <button data-g="nouvelle">Grille proposée</button>
+      </div>
+    </div>
+    <details class="fenetre" id="explications-grille">
+      <summary><span class="quand-ferme">Afficher les explications</span><span class="quand-ouvert">Masquer les explications</span>
+        <span class="discret">— comment la grille proposée a été construite</span></summary>
+      <div class="contenu">
+        <p class="legende-texte" style="margin:6px 0">La grille proposée ne retouche pas l'ancienne grille à la main : elle est recalculée à partir de l'historique.
+          La demande des chirurgiens est mesurée sur la période du <span id="eg-debut"></span> au <span id="eg-fin"></span> (réglable dans « Reconstruire la grille ») ;
+          la réserve d'urgences, sur toute la base, de 2019 à 2022. On mesure ce que chaque chirurgien opère réellement,
+          on en déduit son besoin en heures de salle, puis on place ses demi-journées dans les salles.</p>
+        <h3>1. Mesurer la demande de chaque chirurgien</h3>
+        <ul class="explications">
+          <li><b>Interventions retenues</b> : programmées seulement (les urgences sont traitées à part, étape 3), du lundi au vendredi, sur la période choisie<span id="eg-covid"></span>.</li>
+          <li><b>Heures de salle</b> = durée opératoire + rotation de <span class="eg-rot"></span> min ; une durée manquante est remplacée par la médiane du même type d'intervention.</li>
+          <li><b>Demande moyenne</b> : heures de salle par semaine d'activité du chirurgien.</li>
+          <li>Seuls les chirurgiens qui ont au moins 5 interventions programmées sur la période (et un patient toutes les deux semaines d'activité) sont retenus.
+            Les autres (nouveaux codes sans historique, activité marginale) sont <b>retirés de la grille</b> : aucun patient ne leur est attribué,
+            leurs vacations resteraient vides. Leurs créneaux sont libérés pour les autres chirurgiens.</li>
+        </ul>
+        <h3>2. En déduire le besoin</h3>
+        <div class="formule" style="padding:8px 12px;margin:6px 0;font-size:13px">Besoin (h / sem) = demande moyenne × (1 + marge)<span class="discret" style="margin-left:10px">marge = <span id="eg-marge"></span>, réglable dans « Reconstruire la grille »</span></div>
+        <ul class="explications">
+          <li>La marge laisse un peu de place pour les semaines plus chargées que la moyenne.</li>
+          <li>Le besoin est converti en demi-journées sur un cycle de 2 semaines : matin 8 h 00 – 13 h 00 (5 h), après-midi 13 h 30 – 17 h 30 (4 h). Chaque chirurgien retenu a au moins une demi-journée.</li>
+        </ul>
+        <h3>3. Réserver d'abord les urgences</h3>
+        <ul class="explications">
+          <li><b>Réserve d'un jour</b> = quantile <span id="eg-qurg"></span> des heures d'urgence des mêmes jours de la semaine, sur toute la base de 2019 à 2022
+            (<span id="eg-njours"></span> jours d'ouverture du bloc observés pour chaque jour de la semaine), hors mars à mai 2020 où l'activité était perturbée par le COVID-19,
+            arrondi à la demi-heure supérieure :
+            elle suffit au moins <span id="eg-qurg-jours"></span> jours sur 10, alors qu'une réserve égale à la moyenne serait souvent dépassée.</li>
+          <li>Elle est posée l'après-midi (sauf si plus de 60 % des urgences de ce jour sont opérées le matin), dans la salle qui avait déjà les urgences ce jour-là,
+            sinon dans celle dont l'après-midi est le moins chargé.</li>
+        </ul>
+        <details class="fenetre" id="exemple-reserve">
+          <summary><span class="quand-ferme">Afficher l'exemple</span><span class="quand-ouvert">Masquer l'exemple</span></summary>
+          <div class="contenu" id="eg-exemple-reserve"></div>
+        </details>
+        <h3>4. Placer les chirurgiens, un à un (algorithme glouton)</h3>
+        <ul class="explications">
+          <li>À chaque tour, on sert le chirurgien <b>le moins bien couvert</b> (demi-journées placées / besoin) et on lui donne la case libre
+            jour × salle × demi-journée × semaine paire ou impaire qui a le meilleur score. S'il lui reste au moins 2 demi-journées,
+            une <b>journée entière dans la même salle</b> est favorisée : elle absorbe mieux les longues interventions et les aléas de durée que deux demi-journées séparées.</li>
+          <li><b>Interdit</b> : une case déjà prise, ou deux salles en même temps pour un chirurgien.</li>
+          <li><b>Score d'une case</b> : formule ci-dessous ; le chirurgien reçoit la case libre de score maximal.</li>
+        </ul>
+        <p class="legende-texte" style="margin:8px 0 4px"><b>Notations.</b> Une case est k = (j, s, h, p) : jour j (0 = lundi, …, 4 = vendredi), salle s,
+          demi-journée h (matin ou après-midi), semaine p (paire ou impaire). Pour le chirurgien c :</p>
+        <ul class="explications" style="max-height:none">
+          <li><b>π<sub>c</sub>(j)</b> : part de ses patients opérés le jour j sur la période choisie ;</li>
+          <li><b>N<sub>c</sub></b> : nombre moyen de nuits de ses patients ;</li>
+          <li><b>a<sub>c</sub></b> : part de ses patients en ambulatoire ;</li>
+          <li><b>𝟙[·]</b> : vaut 1 si la condition est vraie, 0 sinon ;</li>
+          <li><b>h̄</b> : l'autre demi-journée du même jour ;</li>
+          <li><b>p̄</b> : l'autre semaine ;</li>
+          <li><b>α<sub>c</sub></b> : patients ambulatoires qu'il opère par heure de vacation ;</li>
+          <li><b>d<sub>h</sub></b> : durée de la demi-journée (5 h le matin, 4 h l'après-midi) ;</li>
+          <li><b>A<sub>j,p</sub></b> : patients ambulatoires déjà prévus le jour j de la semaine p, d'après les demi-journées déjà données
+            pendant la construction de la grille : somme des α<sub>c</sub> × d<sub>h</sub> des chirurgiens déjà placés ce jour-là ;</li>
+          <li><b>P<sub>j</sub></b> : places ambulatoires (16) moins les urgences ambulatoires moyennes du jour ;</li>
+          <li><b>n<sub>c,p</sub></b> : demi-journées déjà données à c la semaine p ;</li>
+          <li>poids : w<sub>ℓ</sub> = 1 (lits), w<sub>a</sub> = 1 (places ambulatoires), w<sub>e</sub> = 0,5 (équilibre des semaines).</li>
+        </ul>
+        <div class="formule"><div class="formule-tex" data-tex="\begin{aligned}
+S(c,k) \;=\;& \underbrace{3\,\pi_c(j) \;-\; 5\,\text{𝟙}\big[\pi_c(j) < 0{,}05\big]}_{\text{jours habituels}}
+\\
+&+\; \underbrace{\text{𝟙}\big[c \text{ en } (j,s,\bar h,p)\big] \;-\; 3\,\text{𝟙}\big[c \text{ en } (j,s',\bar h,p),\ s' \neq s\big] \;+\; 0{,}6\,\text{𝟙}\big[c \text{ en } (j,s,h,\bar p)\big]}_{\text{continuité}} \\
+&-\; \underbrace{w_\ell \; 0{,}15 \, \max(0,\, j-2) \; N_c \, (1 - a_c)}_{\text{lits le week-end}}
+\;-\; \underbrace{0{,}5 \; \text{𝟙}[s = 1]}_{\text{salle 1}} \\
+&-\; \underbrace{w_a \Big[\max\big(0,\; A_{j,p} + \alpha_c d_h - 0{,}8\,P_j\big) - \max\big(0,\; A_{j,p} - 0{,}8\,P_j\big)\Big]}_{\text{places ambulatoires}}
+\;-\; \underbrace{w_e \,\big(n_{c,p} - n_{c,\bar p}\big)}_{\text{équilibre des semaines}}
+\end{aligned}"></div>
+        <div class="formule-tex" data-tex="S_{\text{journée}} = \frac{S(c,\text{matin}) + S(c,\text{après-midi})}{2} + 1"></div></div>
+        <ul class="explications" style="max-height:none">
+          <li><i>jours habituels</i> : 3 π<sub>c</sub>(j) favorise ses jours d'activité ; −5 écarte les jours où il opère moins de 5 % de ses patients (jours de consultation).</li>
+          <li><i>continuité</i> : +1 pour compléter une journée dans la même salle, −3 s'il est dans une autre salle l'autre demi-journée, +0,6 pour garder la même case l'autre semaine.</li>
+          <li><i>lits le week-end</i> : plus on est proche du week-end, plus on pénalise un chirurgien qui a des patients qui pourraient rester dormir le week-end.
+            max(0, j − 2) vaut 1 le jeudi et 2 le vendredi ; N<sub>c</sub> (1 − a<sub>c</sub>) est grand pour un chirurgien dont les patients hospitalisés
+            restent plusieurs nuits : ils occuperaient des lits le week-end, quand il y a moins d'infirmiers.</li>
+          <li><i>salle 1</i> : −0,5. Comme la salle 1 est fermée dans la BDD de 2019 à 2022, on préfère éviter de la rouvrir :
+            les salles déjà ouvertes sont remplies d'abord.</li>
+          <li><i>places ambulatoires</i> : chaque patient ambulatoire attendu au-delà de 80 % des places du jour coûte 1 point.
+            <i><b>Sans ce terme, les places ambulatoires explosaient le mardi</b> : les trois chirurgiens les plus ambulatoires (CT, MT et MO)
+            y étaient tous placés, soit 17 à 18 ambulatoires chaque mardi pour 16 places.</i></li>
+          <li><i>équilibre des semaines</i> : −0,5 par demi-journée d'avance sur l'autre semaine, pour que chaque chirurgien opère chaque semaine.
+            Sans lui, le terme ambulatoire repoussait un chirurgien vers une semaine sur deux, et ses patients s'entassaient dans moins de vacations.</li>
+          <li><i>journée entière</i> : s'il lui reste au moins 2 demi-journées, une journée complète dans une même salle est notée S<sub>journée</sub> (moyenne des deux demi-journées + 1).</li>
+          <li><b>Cases interdites</b> (pas de score) : une case déjà prise, ou une case où le chirurgien serait déjà dans une autre salle au même moment.</li>
+        </ul>
+        <h3>5. Assembler la grille</h3>
+        <ul class="explications">
+          <li>Matin + après-midi du même chirurgien dans la même salle = une vacation de 8 h 00 à 17 h 30 ; même case en semaine paire et impaire = toutes les semaines.</li>
+          <li>Le cycle passe de 4 semaines (ancienne grille, avec ses « 1 semaine impaire sur 2 ») à 2 semaines : paire / impaire.</li>
+        </ul>
+        <p class="aide" id="eg-resultat"></p>
+        <p class="aide">Le détail chirurgien par chirurgien est dans « Pourquoi ces changements ? » et dans le tableau demande / offre ci-dessous ;
+          la marge, la période et les quantiles se règlent dans « Reconstruire la grille ». Limite : le placement glouton donne une bonne grille, pas la meilleure possible.</p>
+      </div>
+    </details>
+    <div class="barre-outils">
+      <div class="segments" id="choix-semaine"></div>
+      <span class="discret" id="grille-resume"></span>
+      <button class="bouton" id="btn-utiliser-grille">Utiliser cette grille pour le planning</button>
+    </div>
+    <div id="edt"></div>
+    <div class="legende-edt">
+      <span><i class="pastille chir"></i>Vacation d'un chirurgien</span>
+      <span><i class="pastille urg"></i>⚑ Réserve d'urgences</span>
+      <span><i class="pastille libre"></i>Libre</span>
+    </div>
+  </div>
+  <div class="grille2">
+    <div class="carte">
+      <h2>Demande et offre par chirurgien (h / semaine)</h2>
+      <p class="legende-texte">Demande = heures de salle des interventions programmées (durée + rotation de <span id="rot"></span> min), par semaine d'activité.
+        Besoin = demande moyenne × (1 + marge).</p>
+      <div class="graphe haut"><canvas id="g-demande"></canvas></div>
+    </div>
+    <div class="carte">
+      <h2>Pourquoi ces changements ?</h2>
+      <ul id="explications" class="explications"></ul>
+      <h3>Reconstruire la grille</h3>
+      <div class="ligne3">
+        <label>Marge (%) <input id="p-marge" type="number" min="0" max="50" step="1"></label>
+        <label>Période du <input id="p-debut" type="date"></label>
+        <label>au <input id="p-fin" type="date"></label>
+        <label>Quantile urgences <input id="p-quantile" type="number" min="0.5" max="0.99" step="0.05"></label>
+      </div>
+      <button class="bouton principal" id="btn-reconstruire">Reconstruire la grille proposée</button>
+    </div>
+  </div>
+  <div class="grille2">
+    <div class="carte">
+      <h2>Réserve d'urgences par jour</h2>
+      <p class="legende-texte">Réserve = quantile <span id="leg-qurg"></span> des heures d'urgence des jours passés (et non la moyenne) :
+        elle suffit au moins <span id="leg-qurg-jours"></span> jours sur 10.</p>
+      <div class="graphe"><canvas id="g-reserve"></canvas></div>
+    </div>
+    <div class="carte"><h2>Détail de la réserve</h2><div id="table-reserve"></div>
+      <p class="aide" id="verif-grille"></p></div>
+  </div>
+  <div class="carte"><h2>Tableau demande / offre</h2><div id="table-demande"></div></div>
+</section>
+
+<!-- ======================= TECHNIQUE ======================= -->
+<section id="technique" class="page">
+  <div class="grille2 haut-aligne">
+    <div class="carte">
+      <h2>Fonction objectif</h2>
+      <details class="fenetre" id="explications-f">
+        <summary><span class="quand-ferme">Afficher la formule</span><span class="quand-ouvert">Masquer la formule</span>
+          <span class="discret">— définition de F et notations</span></summary>
+        <div class="contenu">
+      <div class="formule" id="formule-f">
+        <div class="formule-tex" data-tex="\begin{aligned}
+F \;=\;& W_1 \sum_{t} \left(n_t - n^*_t\right)^2 \;+\; W_1' \sum_{t} \left(a_t - a^*_t\right)^2 \\
+&+\; W_2 \sum_{v \,:\, c_v > 0} \Big[\left(H_v - c_v\right)^+ + \varepsilon\,\frac{c_v \left(H_v - c_v\right)^+}{H_v}\Big] \;+\; W_3 \sum_{i} w_i \,\max\left(0,\; j_i - d_i\right) \\
+&+\; W_6 \sum_{i} \Big[\max\left(0,\; s_i - j_i\right) + \max\left(0,\; j_i - s_i - \tau_i\right)\Big] \\
+&+\; W_4 \Big[\sum_{t} \max\left(0,\; n_t - C_L(t)\right)^2 + \sum_{t} \max\left(0,\; a_t - C_A(t)\right)^2\Big] \\
+&+\; W_5 \sum_{v} \max\Big(0,\; \sum_{i \in v} \mu_i + z_\beta \sqrt{\textstyle\sum_{i \in v} \sigma_i^2} - H_v\Big)^2
+\end{aligned}"></div>
+        <div class="formule-tex" data-tex="\begin{aligned}
+n^*_t &= \frac{E_t}{\sum_s E_s} \sum_s n_s \qquad a^*_t = \frac{o_t\,E_t}{\sum_s o_s E_s} \sum_s a_s \\
+c_v &= \sum_{i \in v} \mu_i \qquad (x)^+ = \max(0,\, x) \\
+E_t &= \begin{cases} 1 & \text{en semaine} \\ \alpha & \text{le week-end et les jours fériés} \end{cases}
+\end{aligned}"></div>
+      </div>
+      <p class="legende-texte">F est calculée pour une <b>solution</b> : l'affectation de chaque patient i à une vacation v, choisie parmi
+        ses vacations admissibles (son chirurgien, dans sa fenêtre de dates). Les métaheuristiques (planning d'ouverture) et l'attribution
+        patient (un patient à la fois) cherchent la solution de plus petite F.</p>
+
+      <h3>1. Notations</h3>
+      <div style="overflow-x:auto"><table class="notations">
+        <tbody>
+          <tr class="groupe"><th colspan="2">Indices</th></tr>
+          <tr><td>i</td><td>un patient à programmer</td></tr>
+          <tr><td>v</td><td>une vacation : une salle, un jour, un créneau horaire, un chirurgien</td></tr>
+          <tr><td>t, s</td><td>un jour de l'horizon et la nuit qui le suit (t = 0 est un lundi) ; s parcourt aussi les jours, dans les sommes</td></tr>
+          <tr><td>i ∈ v</td><td>les patients affectés à la vacation v</td></tr>
+          <tr class="groupe"><th colspan="2">Décision</th></tr>
+          <tr><td>j<sub>i</sub></td><td>jour d'opération du patient i, c'est-à-dire le jour de la vacation qui lui est attribuée</td></tr>
+          <tr class="groupe"><th colspan="2">Données du patient</th></tr>
+          <tr><td>µ<sub>i</sub></td><td>durée opératoire prévue (min), prédite par le ML ou l'étude statistique</td></tr>
+          <tr><td>σ<sub>i</sub></td><td>écart-type de cette durée (min) : l'incertitude de la prédiction</td></tr>
+          <tr><td>A<sub>i</sub>, L<sub>i</sub></td><td>ambulatoire (1) ou hospitalisé (0), et nombre de nuits prévues (0 si ambulatoire), prédits aussi</td></tr>
+          <tr><td>s<sub>i</sub></td><td>date d'opération souhaitée, saisie par le médecin</td></tr>
+          <tr><td>τ<sub>i</sub></td><td>tolérance : nombre de jours après s<sub>i</sub> acceptés sans pénalité</td></tr>
+          <tr><td>d<sub>i</sub></td><td>limite médicale : date de la demande + délai médical maximal (60 j par défaut)</td></tr>
+          <tr><td>w<sub>i</sub></td><td>urgence du diagnostic, réglée par chapitre ou code CIM-10 (tableau « Poids de retard par diagnostic »)</td></tr>
+          <tr class="groupe"><th colspan="2">Occupation, calculée à partir de la solution</th></tr>
+          <tr><td>n<sub>t</sub></td><td>lits occupés la nuit t. Un patient hospitalisé occupe un lit les nuits j<sub>i</sub> à j<sub>i</sub> + L<sub>i</sub> − 1
+            (une sortie tombant un dimanche est reportée au lundi).</td></tr>
+          <tr><td>a<sub>t</sub></td><td>places ambulatoires occupées le jour t : patients ambulatoires opérés ce jour-là</td></tr>
+          <tr><td>n*<sub>t</sub>, a*<sub>t</sub></td><td>cibles : même total que n<sub>t</sub> et a<sub>t</sub> sur l'horizon, mais réparti selon le personnel présent chaque jour</td></tr>
+          <tr><td>E<sub>t</sub></td><td>personnel infirmier du jour t, relatif à un jour de semaine : 1 en semaine, α le week-end et les jours fériés</td></tr>
+          <tr><td>o<sub>t</sub></td><td>1 si l'ambulatoire est ouvert le jour t, 0 sinon : o<sub>t</sub> est fixé à 0 le week-end et les jours fériés, car l'hôpital ne programme pas d'opération ces jours-là</td></tr>
+          <tr><td>c<sub>v</sub></td><td>minutes prévues dans la vacation v : somme des µ<sub>i</sub> de ses patients. La vacation est
+            <b>utilisée</b> si au moins un patient y est affecté (c<sub>v</sub> &gt; 0), sinon elle est vide (libérée)</td></tr>
+          <tr class="groupe"><th colspan="2">Capacités</th></tr>
+          <tr><td>H<sub>v</sub></td><td>durée de la vacation v (min), d'après la grille des vacations</td></tr>
+          <tr><td>C<sub>L</sub>(t)</td><td>lits disponibles la nuit t (25 en semaine, 18 les nuits du samedi, du dimanche et des jours fériés par défaut)</td></tr>
+          <tr><td>C<sub>A</sub>(t)</td><td>places ambulatoires ouvertes le jour t (16 par défaut, 0 le week-end et les jours fériés)</td></tr>
+          <tr><td>z<sub>β</sub></td><td>coefficient de la marge d'aléa des salles (1 par défaut)</td></tr>
+          <tr class="groupe"><th colspan="2">Poids</th></tr>
+          <tr><td>W<sub>1</sub> … W<sub>6</sub></td><td>importance de chaque terme, réglable juste en dessous</td></tr>
+          <tr><td>ε</td><td>poids du guidage dans le terme W<sub>2</sub> (0,5 par défaut)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>2. Les termes un par un</h3>
+      <div class="terme">
+        <h4>W<sub>1</sub> · lissage des lits</h4>
+        <div class="formule-tex" data-tex="W_1 \sum_{t} \left(n_t - n^*_t\right)^2"></div>
+        <p>Pour chaque nuit, écart entre les lits occupés et la cible, élevé au carré. Le carré pénalise davantage un gros pic que
+          plusieurs petits écarts : 3 lits de trop une seule nuit coûtent 3² = 9, alors qu'1 lit de trop trois nuits de suite coûte 3.
+          La cible suit le personnel : avec α = 0,6, si la cible d'une nuit de semaine est 15 lits, celle d'une nuit de week-end est 9.
+          On ne cherche donc pas à remplir les lits quand il y a moins d'infirmiers. Poids par défaut : 1.</p>
+      </div>
+      <div class="terme">
+        <h4>W<sub>1</sub>′ · lissage des places ambulatoires</h4>
+        <div class="formule-tex" data-tex="W_1' \sum_{t} \left(a_t - a^*_t\right)^2"></div>
+        <p>Même principe, jour par jour, pour les places ambulatoires. La cible a*<sub>t</sub> ne porte que sur les jours d'ouverture
+          (o<sub>t</sub> = 1) : elle vaut 0 le week-end et les jours fériés. Poids par défaut : 2,5.</p>
+      </div>
+      <div class="terme">
+        <h4>W<sub>2</sub> · regroupement des patients : favoriser les vacations vides</h4>
+        <div class="formule-tex" data-tex="W_2 \sum_{v \,:\, c_v > 0} \Big[\left(H_v - c_v\right)^+ + \varepsilon\,\frac{c_v \left(H_v - c_v\right)^+}{H_v}\Big]"></div>
+        <p>Le remplissage global est fixé par la liste de patients (chacun va dans les vacations de son chirurgien) : ce terme de F
+          sert donc à favoriser les vacations entièrement vides, qui sont libérées. Mieux vaut une vacation pleine et une vide que deux
+          à moitié vides.</p>
+        <p><b>(H<sub>v</sub> − c<sub>v</sub>)<sup>+</sup></b> : temps perdu dans une vacation ouverte ; une vacation presque vide coûte presque
+          toute sa durée, une vide ne coûte rien. <b>Guidage ε</b> (0,5) : récompense chaque patient rapproché de la vacation la plus remplie,
+          sinon les métaheuristiques ne voient aucun progrès avant que la vacation soit vide.</p>
+        <p>Au-delà de H<sub>v</sub>, le terme vaut 0 (le débordement relève de W<sub>5</sub>).</p>
+        <div class="exemple-terme">
+          <table>
+            <caption>Exemple : 2 vacations de 5 h, 4 patients de 30 min dans chacune, déplacés un par un de la première vers la seconde.
+              W<sub>2</sub> = 0,012 (valeur par défaut), ε = 0,5.</caption>
+            <thead><tr><th>Remplissage</th><th class="num">Temps vide seul</th>
+              <th class="num">Guidage seul</th><th class="num">Terme entier</th></tr></thead>
+            <tbody>
+              <tr><td>40 % + 40 %</td><td class="num">4,32</td><td class="num">1,73</td><td class="num"><b>5,18</b></td></tr>
+              <tr><td>30 % + 50 %</td><td class="num">4,32</td><td class="num">1,66</td><td class="num"><b>5,15</b></td></tr>
+              <tr><td>20 % + 60 %</td><td class="num">4,32</td><td class="num">1,44</td><td class="num"><b>5,04</b></td></tr>
+              <tr><td>10 % + 70 % (presque vide)</td><td class="num">4,32</td><td class="num">1,08</td><td class="num"><b>4,86</b></td></tr>
+              <tr><td>80 % + vide</td><td class="num">0,72</td><td class="num">0,58</td><td class="num"><b>1,01</b></td></tr>
+            </tbody>
+          </table>
+          <p>Terme entier = temps vide + ε × guidage : il baisse à chaque étape, et la vacation presque vide y coûte presque autant
+            que 40 % + 40 %.</p>
+        </div>
+      </div>
+      <div class="terme">
+        <h4>W<sub>3</sub> · retard au-delà de la limite médicale</h4>
+        <div class="formule-tex" data-tex="W_3 \sum_{i} w_i \,\max\left(0,\; j_i - d_i\right)"></div>
+        <p>Nul tant que le patient est opéré au plus tard à sa limite médicale d<sub>i</sub>. Au-delà, chaque jour de retard coûte
+          W<sub>3</sub> × w<sub>i</sub>. Quand tous les patients ne peuvent pas être opérés avant leur limite,
+          un diagnostic urgent (w<sub>i</sub> élevé) passe donc en priorité.
+          Ce terme ne dépend ni de la date souhaitée ni de la tolérance.</p>
+      </div>
+      <div class="terme">
+        <h4>W<sub>6</sub> · écart à la date souhaitée</h4>
+        <div class="formule-tex" data-tex="W_6 \sum_{i} \Big[\max\left(0,\; s_i - j_i\right) + \max\left(0,\; j_i - s_i - \tau_i\right)\Big]"></div>
+        <p>Première partie : jours d'avance, si le patient est opéré avant la date souhaitée.<br>Seconde partie : jours de report au-delà
+          de la tolérance.<br>Le terme est nul si l'opération tombe entre s<sub>i</sub> et s<sub>i</sub> + τ<sub>i</sub>.<span style="display:block;height:6px"></span>
+          Exemple avec une date souhaitée un lundi et τ<sub>i</sub> = 2 : opéré le mercredi, coût 0 ; le vendredi, 2 jours de report, soit
+          2 W<sub>6</sub> ; le vendredi précédent, 3 jours d'avance, soit 3 W<sub>6</sub>. Poids par défaut très faible (0,014 par jour, choisi par
+          l'optimisation bayésienne, voir « Poids par défaut de F » en bas de l'onglet) : c'est un terme de confort, qui départage des dates
+          équivalentes sans l'emporter sur le lissage, la marge des salles ou la limite médicale.</p>
+      </div>
+      <div class="terme">
+        <h4>W<sub>4</sub> · dépassement des capacités d'hébergement</h4>
+        <div class="formule-tex" data-tex="W_4 \Big[\sum_{t} \max\left(0,\; n_t - C_L(t)\right)^2 + \sum_{t} \max\left(0,\; a_t - C_A(t)\right)^2\Big]"></div>
+        <p>Nul tant que les lits et les places restent dans les capacités. Chaque nuit où il manque des lits, et chaque jour où il manque
+          des places, coûte le nombre manquant au carré, multiplié par un poids élevé (100) : 1 lit de trop coûte 100, 2 lits 400.
+          C'est une quasi-interdiction. Actif seulement si « Pénaliser les capacités » est coché.</p>
+      </div>
+      <div class="terme">
+        <h4>W<sub>5</sub> · marge d'aléa des salles</h4>
+        <div class="formule-tex" data-tex="W_5 \sum_{v} \max\Big(0,\; \sum_{i \in v} \mu_i + z_\beta \sqrt{\textstyle\sum_{i \in v} \sigma_i^2} - H_v\Big)^2"></div>
+        <p>La charge prévue d'une vacation (Σ µ<sub>i</sub>) est augmentée d'une marge pour l'incertitude des durées : z<sub>β</sub> fois
+          l'écart-type de la durée totale. Ce sont les variances σ<sub>i</sub>² qui s'additionnent, d'où la racine de leur somme.
+          Avec z<sub>β</sub> = 1, et des durées supposées normales et indépendantes, la vacation se termine à l'heure environ 84 fois sur 100.
+          Si la charge plus la marge dépasse H<sub>v</sub>, l'excès est compté au carré (en minutes²) : 30 min de dépassement coûtent
+          0,19 × 30² = 171 avec le poids par défaut. Actif seulement si « Pénaliser les capacités » est coché.</p>
+      </div>
+
+      <h3>3. Ce qui n'est pas dans F : les contraintes imposées</h3>
+      <ul class="explications" style="max-height:none">
+        <li>Chaque patient est programmé exactement une fois : la solution donne une seule vacation par patient.</li>
+        <li>La vacation est celle de son chirurgien, dans sa fenêtre de dates : au plus tôt s<sub>i</sub> − 7 j (et après le délai de
+          préparation), au plus tard s<sub>i</sub> + τ<sub>i</sub> + 21 j. Ces valeurs se règlent dans « Délais et horizon ».</li>
+        <li>Les autres limites (lits, places, durée des salles) ne sont pas interdites mais très pénalisées par W<sub>4</sub> et W<sub>5</sub>,
+          pour que les métaheuristiques puissent traverser des solutions un peu infaisables.</li>
+      </ul>
+
+      <h3>4. Comment F est calculée : trois versions de la même fonction</h3>
+      <p>F est une seule fonction, mais elle est programmée de trois façons, chacune adaptée à un usage. Les trois donnent la même valeur.</p>
+      <ul class="explications" style="max-height:none">
+        <li><b>Version de référence</b> (<code>evaluer</code>) : calcul complet, patient par patient, avec des boucles simples. C'est la plus
+          lisible : elle sert de définition de F et sa signature ne change jamais. Elle sert à afficher les résultats et à vérifier les deux autres.</li>
+        <li><b>Version incrémentale</b> (<code>Evaluateur</code>) : elle garde en mémoire les lits de chaque nuit, les places de chaque jour,
+          la charge de chaque vacation et les sommes des termes. Quand un patient change de vacation, seuls ses nuits, ses jours et ses deux
+          vacations sont mis à jour, au lieu de reparcourir tous les patients. Les cibles n*<sub>t</sub> dépendent du total des lits : elle garde
+          aussi Σ n<sub>t</sub>², Σ n<sub>t</sub> E<sub>t</sub> et Σ n<sub>t</sub>, ce qui suffit pour recalculer exactement le terme de lissage.
+          Elle est utilisée par le recuit, le tabou, l'attribution d'un nouveau patient et les agents de la simulation, qui testent des millions
+          de petits déplacements.</li>
+        <li><b>Version vectorisée</b> (<code>EvaluateurVect</code>, numpy) : calcul complet, mais sur des tableaux entiers d'un coup, sans boucle
+          Python. Elle est utilisée par l'algorithme génétique et le mémétique : un enfant issu d'un croisement est une solution entièrement
+          nouvelle, et l'évaluation incrémentale n'y apporterait rien.</li>
+        <li><b>Vérification</b> : des tests automatiques comparent les trois versions sur des solutions tirées au hasard et après des centaines
+          de déplacements ; elles donnent la même valeur, à 10<sup>−9</sup> près en relatif.</li>
+      </ul>
+        </div>
+      </details>
+      <div class="ligne3" id="p-poids"></div>
+      <p class="aide" style="margin:4px 0 0">Comment les poids par défaut ont été définis (barème initial, puis optimisation bayésienne
+        sous contraintes) : voir la fenêtre « Poids par défaut de F » en bas de cet onglet.
+        <a href="#" id="lien-poids-defaut">Ouvrir l'explication</a></p>
+      <div class="actions-bas">
+        <button class="bouton principal" id="btn-sauver-params">Enregistrer</button>
+        <button class="bouton" id="btn-defaut-params">Valeurs par défaut</button>
+        <span class="discret msg-params" id="msg-params"></span>
+      </div>
+    </div>
+    <div class="pile">
+    <div class="carte">
+      <h2>Capacités et délais</h2>
+      <h3>Hébergement et personnel</h3>
+      <p class="aide" style="margin:0 0 8px">α est la part du personnel infirmier présent le week-end et les jours fériés, par rapport à un jour de semaine :
+        E<sub>t</sub> = 1 en semaine, E<sub>t</sub> = α le samedi, le dimanche et les jours fériés. Avec α = 0,6, il y a 60 % des infirmiers d'un jour de semaine,
+        et la cible de lits de ces jours-là est 60 % de celle d'un jour de semaine : l'optimisation évite de remplir les lits quand il y a moins de personnel.<br><br>
+        α fixe donc une cible (lissage, W<sub>1</sub>), tandis que les lits (semaine, week-end et jours fériés) fixent une limite : le nombre de lits ouverts, pénalisé seulement s'il est dépassé (W<sub>4</sub>).</p>
+      <div class="ligne3" id="p-heberg"></div>
+      <div class="table-norm" id="cible-heberg"></div>
+      <details class="fenetre" id="explications-cible">
+        <summary><span class="quand-ferme">Afficher le calcul de la cible</span><span class="quand-ouvert">Masquer le calcul de la cible</span>
+          <span class="discret">— cibles des lits et des places, lissage</span></summary>
+        <div class="contenu">
+        <p class="aide" style="margin:0">Les deux cibles sont définies ainsi :</p>
+        <div class="formule-tex" data-tex="n^*_t = \frac{E_t}{\sum_{s} E_s}\,\sum_{s} n_s \qquad\qquad a^*_t = \frac{o_t\,E_t}{\sum_{s} o_s E_s}\,\sum_{s} a_s"></div>
+        <p class="aide" style="margin:0 0 4px">avec :</p>
+        <ul class="explications" style="max-height:none">
+          <li>n<sub>t</sub> : lits occupés la nuit t, et Σ<sub>s</sub> n<sub>s</sub> le total de lits × nuits sur l'horizon ;</li>
+          <li>a<sub>t</sub> : places ambulatoires occupées le jour t ;</li>
+          <li>E<sub>t</sub> : personnel de la nuit t, égal à 1 en semaine et à α le week-end et les jours fériés ;</li>
+          <li>o<sub>t</sub> : 1 si le bloc est ouvert le jour t, 0 sinon.</li>
+        </ul>
+        <p class="aide" style="margin:10px 0 0">Le lissage mesure ensuite l'écart à ces cibles :</p>
+        <div class="formule-tex" data-tex="\text{lissage} = W_1 \sum_{t} \left(n_t - n^*_t\right)^2 \;+\; W_1' \sum_{t} \left(a_t - a^*_t\right)^2"></div>
+        <p class="aide" style="margin-top:0">Le score de robustesse mesure le même écart, en lits :
+          √(Σ<sub>t</sub> (n<sub>t</sub> − n*<sub>t</sub>)² / nombre de nuits).</p>
+        </div>
+      </details>
+      <h3>Délais et horizon</h3>
+      <p class="aide" style="margin:0 0 8px">Le délai médical et la tolérance sont des contraintes souples, pénalisées dans F (W<sub>3</sub>, W<sub>6</sub>) ;
+        l'avance max, le report max et le délai de préparation sont des contraintes dures qui bornent la fenêtre des vacations admissibles
+        de chaque patient, [s<sub>i</sub> − avance max ; s<sub>i</sub> + τ<sub>i</sub> + report max], et réduisent ainsi l'espace de recherche.</p>
+      <div class="ligne3" id="p-delais"></div>
+      <div class="actions-bas">
+        <button class="bouton principal" id="btn-sauver-capacites">Enregistrer</button>
+        <button class="bouton" id="btn-defaut-capacites">Valeurs par défaut</button>
+        <span class="discret msg-params"></span>
+      </div>
+    </div>
+    </div>
+  </div>
+  <div class="carte" id="carte-wi">
+    <h2>Poids de retard par diagnostic (w<sub>i</sub>)</h2>
+    <p class="legende-texte">Un jour de retard au-delà de la limite médicale d<sub>i</sub> (date de la demande + délai médical maximal) coûte W3 × w<sub>i</sub> :
+      w<sub>i</sub> mesure l'urgence d'opérer vite. Le code à 3 caractères, s'il est réglé, l'emporte sur le chapitre. Laisser vide = poids du chapitre.</p>
+    <div class="deux-tables">
+      <div><h3>Par chapitre CIM-10</h3><div id="t-chapitres" class="defile"></div></div>
+      <div><h3>Par code (les plus fréquents)</h3><div id="t-codes" class="defile"></div></div>
+    </div>
+    <div class="actions-bas">
+      <button class="bouton principal" id="btn-sauver-wi">Enregistrer les poids w<sub>i</sub></button>
+      <span class="discret" id="msg-wi"></span>
+    </div>
+  </div>
+
+  <div class="carte">
+    <h2>Comparaison des métaheuristiques et de leurs hybrides (planning vierge)</h2>
+    <p class="legende-texte">Même instance (même d), mêmes graines, même solution de départ et même budget d'évaluations de F pour toutes les méthodes, hybrides compris.
+      Instance : <b id="o-instance">la liste des patients initiaux</b> (onglet « Patients initiaux »), à placer sur l'horizon d'ouverture.</p>
+    <p class="legende-texte"><b>Attention : on calcule ici le planning optimal du nouvel hôpital, sur un planning vierge. On ne prend en compte aucun aléa,
+      ni même les urgences. Il faut donc aussi comparer la robustesse des plannings dans l'onglet « Simulation et aléas ».</b></p>
+    <details class="fenetre" id="explications-methodes">
+      <summary><span class="quand-ferme">Afficher les explications</span><span class="quand-ouvert">Masquer les explications</span>
+        <span class="discret">— insertion gloutonne, recuit simulé, recherche tabou, algorithme génétique</span></summary>
+      <div class="contenu">
+        <h3>1. L'heuristique de base : l'insertion gloutonne</h3>
+        <ul class="explications" style="max-height:none">
+          <li>Les patients sont pris un par un, par date limite médicale croissante (à date égale, les opérations les plus longues d'abord).
+            Chacun est placé dans la vacation admissible qui fait <b>le moins augmenter F</b>, et n'est plus jamais déplacé.</li>
+          <li>Une seule passe : c'est très rapide. C'est aussi la règle de la page Attribution patient, qui place les nouveaux patients un à un.</li>
+          <li>Limite : la méthode est « myope ». Un choix fait tôt, bon sur le moment, n'est jamais corrigé, même s'il gêne les patients suivants.
+            Elle sert de <b>référence</b> (ligne « Glouton » des résultats) et peut servir de point de départ aux métaheuristiques (« Départ : gloutonne »).</li>
+        </ul>
+
+        <h3>2. Les trois métaheuristiques</h3>
+        <p class="legende-texte">Elles partent d'un planning complet (aléatoire ou glouton) et l'améliorent pas à pas, en acceptant parfois de dégrader F
+          pour sortir d'un optimum local. Le recuit et la recherche tabou modifient le planning par deux mouvements :
+          le <b>déplacement</b> (un patient change de vacation admissible) et l'<b>échange</b> (deux patients du même chirurgien échangent leurs vacations,
+          utile quand les vacations sont pleines ; 30 % des mouvements tirés).</p>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Méthode</th><th>Principe</th><th>Pour sortir d'un optimum local</th><th>Réglages par défaut</th><th>Point fort / limite</th></tr></thead>
+          <tbody>
+            <tr><td><b>Recuit simulé</b></td>
+              <td>À chaque pas, un voisin est tiré au hasard. S'il améliore F, il est accepté.</td>
+              <td>Une dégradation Δ est acceptée avec la probabilité exp(−Δ / T). La température T baisse peu à peu (T ← α T) :
+                on accepte beaucoup de dégradations au début, presque plus à la fin.</td>
+              <td>T<sub>0</sub> : une dégradation moyenne acceptée une fois sur deux ; T finale = T<sub>0</sub> × 10<sup>−4</sup>, atteinte à la fin du budget</td>
+              <td>Explore large puis descend loin, avec une évaluation (rapide) par pas. Sensible au réglage du refroidissement.</td></tr>
+            <tr><td><b>Recherche tabou</b></td>
+              <td>À chaque itération, 40 voisins sont tirés et on va au <b>meilleur</b>, même s'il est moins bon que la solution actuelle.</td>
+              <td>Liste tabou : un patient sorti d'une vacation ne peut pas y revenir pendant 10 à 30 itérations (durée tirée au hasard pour éviter les cycles).
+                Critère d'aspiration : un mouvement tabou est permis s'il bat la meilleure solution trouvée.</td>
+              <td>40 voisins par itération ; durée tabou de 10 à 30 itérations</td>
+              <td>Affine très bien une bonne solution. Chaque pas coûte 40 évaluations : seule, elle progresse lentement.</td></tr>
+            <tr><td><b>Algorithme génétique</b></td>
+              <td>Une population de plannings évolue : on sélectionne des parents, on les croise, on fait muter l'enfant.</td>
+              <td>La population garde des plannings très différents. Sélection par tournoi (le meilleur de 3 plannings tirés au hasard) ;
+                croisement « par chirurgien » : l'enfant reprend en bloc les patients de chaque chirurgien chez l'un ou l'autre parent ;
+                mutation : chaque patient change de vacation avec une probabilité 2 / N ; élitisme : les 2 meilleurs passent tels quels à la génération suivante.</td>
+              <td>50 plannings ; croisement 90 % ; tournoi de 3 ; 2 élites</td>
+              <td>Explore le plus large. Chaque enfant demande une évaluation complète de F (environ 7 fois plus lente) : peu de générations pour un budget donné.</td></tr>
+          </tbody>
+        </table></div>
+        <p class="aide">Toutes les méthodes ont le même budget d'évaluations de F et s'arrêtent quand il est épuisé ; elles renvoient le meilleur planning rencontré.
+          Les réglages se modifient dans « Réglages des algorithmes » ; les hybrides, qui combinent ces méthodes, sont expliqués dans la fenêtre suivante.</p>
+      </div>
+    </details>
+    <details class="fenetre" id="explications-hybrides">
+      <summary><span class="quand-ferme">Afficher les explications</span><span class="quand-ouvert">Masquer les explications</span>
+        <span class="discret">— méthodes hybrides et partage du budget</span></summary>
+      <div class="contenu">
+        <h3>1. Pourquoi hybrider</h3>
+        <p class="legende-texte">Chaque méthode a un point fort : l'algorithme génétique explore large (une population de plannings très différents),
+          le recuit simulé descend loin en refroidissant, la recherche tabou affine une solution sans revenir en arrière.
+          Un hybride combine deux de ces méthodes. Le point de départ (« Départ » : aléatoire ou glouton) reste le même pour toutes les méthodes :
+          il ne fait pas partie de l'hybride.</p>
+
+        <h3>2. Les hybrides proposés</h3>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Hybride</th><th>Type</th><th>Principe</th><th>Budget (par défaut)</th></tr></thead>
+          <tbody>
+            <tr><td><b>Recuit → Tabou</b></td><td>relais</td><td>le recuit explore, puis la recherche tabou repart de sa meilleure solution et l'affine</td>
+              <td>80 % recuit, 20 % tabou</td></tr>
+            <tr><td><b>Génétique → Recuit</b></td><td>relais</td><td>quelques générations du génétique trouvent une bonne région, puis le recuit part de son meilleur individu</td>
+              <td>10 % génétique, 90 % recuit</td></tr>
+            <tr><td><b>Génétique → Tabou</b></td><td>relais</td><td>même idée, mais c'est la recherche tabou qui affine le meilleur individu</td>
+              <td>10 % génétique, 90 % tabou</td></tr>
+            <tr><td><b>Algorithme mémétique</b></td><td>intégré</td><td>algorithme génétique dont chaque enfant est amélioré par une courte recherche tabou avant d'entrer dans la population</td>
+              <td>population de 6 ; 1 000 évaluations de tabou par enfant</td></tr>
+            <tr><td><b>Recuit à liste tabou</b></td><td>intégré</td><td>recuit simulé qui s'interdit, comme la recherche tabou, de remettre un patient dans la vacation qu'il vient de quitter
+              (pendant 10 à 30 mouvements acceptés)</td><td>100 % recuit</td></tr>
+          </tbody>
+        </table></div>
+        <ul class="explications" style="max-height:none;margin-top:8px">
+          <li><b>Relais</b> : les méthodes s'enchaînent ; chacune repart de la meilleure solution de la précédente, donc F ne peut que baisser d'une étape à l'autre.
+            On n'a gardé que les ordres « exploration puis affinage » : placé après le recuit ou le tabou, le génétique n'améliorerait presque plus
+            une solution déjà bonne (sa population est surtout aléatoire) ; placé après le tabou, le recuit repartirait « chaud » et perdrait le travail du tabou.</li>
+          <li><b>Intégré</b> : une méthode travaille à l'intérieur de l'autre (la recherche tabou comme opérateur du génétique, la liste tabou dans le recuit).</li>
+          <li>Les hybrides appellent les fonctions du recuit, du tabou et du génétique du groupe, avec leurs réglages ci-dessous, sans les modifier.
+            Le mémétique reprend les opérateurs du génétique (tournoi, croisement, mutation) ; le recuit à liste tabou reprend les réglages du recuit
+            et la durée tabou de la recherche tabou.</li>
+        </ul>
+
+        <h3>3. Comment les parts du budget ont été choisies</h3>
+        <p class="legende-texte">Par essais sur la liste de patients initiaux (600 patients, 173 vacations), avec un budget de 200 000 évaluations et un départ aléatoire :
+          toute la plage sur 3 graines, puis les meilleures valeurs sur 8 graines (4 pour le mémétique). On a gardé la valeur qui donne le plus petit F moyen.</p>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Hybride</th><th>Valeurs testées</th><th>Retenue</th></tr></thead>
+          <tbody id="reglage-hybrides">
+            <tr><td>Recuit → Tabou</td><td>50 à 95 % de recuit</td><td>80 %</td></tr>
+            <tr><td>Génétique → Recuit</td><td>5 à 50 % de génétique</td><td>10 %</td></tr>
+            <tr><td>Génétique → Tabou</td><td>5 à 50 % de génétique</td><td>10 % (de 5 à 20 %, même F à la variation entre graines près)</td></tr>
+            <tr><td>Algorithme mémétique</td><td>population de 4 à 40 ; 200 à 3 000 évaluations par enfant</td><td>6 ; 1 000</td></tr>
+          </tbody>
+        </table></div>
+        <p class="aide">Le génétique coûte cher : chaque enfant demande une évaluation complète de F, environ 7 fois plus lente que l'évaluation
+          incrémentale du recuit et du tabou. Une petite part lui suffit pour trouver une bonne région ; au-delà de 20 à 30 %, il ne reste plus assez
+          de budget au recuit pour refroidir. À l'inverse, le tabou progresse peu seul (il reste bloqué dans un optimum local) mais affine bien la fin d'un recuit.
+          Lors de ces essais, Génétique → Recuit et Recuit → Tabou ont fait 1,3 à 1,6 % mieux que le recuit seul (et Recuit → Tabou varie beaucoup moins
+          d'une graine à l'autre) ; le recuit à liste tabou a fait jeu égal avec le recuit ; le mémétique et Génétique → Tabou ont fait moins bien que le recuit seul,
+          mais mieux que le tabou et le génétique seuls.
+          Ces parts dépendent de l'instance : elles se modifient dans « Réglages des algorithmes ».</p>
+
+        <h3>4. Lire les résultats</h3>
+        <ul class="explications" style="max-height:none">
+          <li><b>Rang</b> : classement par F moyen sur les graines. Le « ± » est l'écart-type entre graines : un écart entre deux méthodes plus petit que lui
+            n'est pas significatif (une autre graine pourrait inverser le classement).</li>
+          <li><b>Ligne surlignée</b> : méthode qui a trouvé la meilleure solution, toutes graines confondues. « Adopter » remplace le planning par la meilleure
+            solution de la méthode choisie.</li>
+          <li><b>Convergence</b> : pour un relais, la courbe enchaîne les étapes ; la pente change quand la méthode suivante prend le relais.</li>
+          <li><b>Temps</b> : durée d'un run. Les runs tournent en parallèle (jusqu'à 8 à la fois, selon les cœurs de l'ordinateur), ce qui raccourcit l'attente
+            sans changer les résultats.</li>
+        </ul>
+      </div>
+    </details>
+    <div class="ligne-params">
+      <label>Grille <select id="o-grille"><option value="actuelle">Ancienne</option><option value="nouvelle">Proposée</option></select></label>
+      <label>Budget (évaluations) <input id="o-budget" type="number" min="1000" step="10000" value="200000"></label>
+      <label>Graines <input id="o-graines" type="number" min="1" max="20" value="3"></label>
+      <label>Graine initiale <input id="o-graine" type="number" min="0" value="0"></label>
+      <label>Départ <select id="o-depart"><option value="aleatoire">Aléatoire</option><option value="gloutonne">Gloutonne</option></select></label>
+    </div>
+    <p class="avertissement-grille" id="avert-grille" hidden>Attention&nbsp;: c'est l'ancienne grille des vacations qui est choisie,
+      pas la nouvelle. Les métaheuristiques seront lancées sur l'ancienne grille&nbsp;; choisissez «&nbsp;Proposée&nbsp;» pour utiliser la nouvelle.</p>
+    <div class="ligne-params choix-methodes">
+      <span class="etiquette">Méthodes seules</span>
+      <label class="case"><input type="checkbox" id="a-recuit" checked> Recuit simulé</label>
+      <label class="case"><input type="checkbox" id="a-tabou" checked> Recherche tabou</label>
+      <label class="case"><input type="checkbox" id="a-genetique" checked> Algorithme génétique</label>
+    </div>
+    <div class="ligne-params choix-methodes">
+      <span class="etiquette">Hybrides</span>
+      <label class="case"><input type="checkbox" id="a-relais_recuit_tabou" checked> Recuit → Tabou</label>
+      <label class="case"><input type="checkbox" id="a-relais_genetique_recuit" checked> Génétique → Recuit</label>
+      <label class="case"><input type="checkbox" id="a-relais_genetique_tabou" checked> Génétique → Tabou</label>
+      <label class="case"><input type="checkbox" id="a-memetique" checked> Algorithme mémétique</label>
+      <label class="case"><input type="checkbox" id="a-recuit_liste_tabou" checked> Recuit à liste tabou</label>
+    </div>
+    <details class="replie">
+      <summary>Réglages des algorithmes</summary>
+      <div class="trois-cols">
+        <fieldset><legend>Recuit simulé</legend>
+          <label>Acceptation initiale <input id="rs-acc" type="number" step="0.05" min="0.05" max="0.95" value="0.5"></label>
+          <label>T finale / T0 <input id="rs-ratio" type="number" step="any" value="0.0001"></label>
+          <label>Part d'échanges <input id="rs-ech" type="number" step="0.05" min="0" max="1" value="0.3"></label>
+        </fieldset>
+        <fieldset><legend>Recherche tabou</legend>
+          <label>Voisins par itération <input id="tb-k" type="number" min="5" max="500" value="40"></label>
+          <label>Durée tabou min <input id="tb-min" type="number" min="1" value="10"></label>
+          <label>Durée tabou max <input id="tb-max" type="number" min="1" value="30"></label>
+        </fieldset>
+        <fieldset><legend>Algorithme génétique</legend>
+          <label>Population <input id="ag-pop" type="number" min="10" max="500" value="50"></label>
+          <label>P(croisement) <input id="ag-pc" type="number" step="0.05" min="0" max="1" value="0.9"></label>
+          <label>Tournoi <input id="ag-tournoi" type="number" min="2" max="10" value="3"></label>
+          <label>Croisement <select id="ag-crois"><option value="chirurgien">Par chirurgien</option><option value="uniforme">Uniforme</option></select></label>
+        </fieldset>
+      </div>
+      <fieldset class="reglages-hybrides"><legend>Hybrides</legend>
+        <div class="ligne-params">
+          <label>Recuit → Tabou : part du recuit (%) <input id="hy-rt" type="number" min="5" max="95" step="5" value="80"></label>
+          <label>Génétique → Recuit : part du génétique (%) <input id="hy-gr" type="number" min="5" max="95" step="5" value="10"></label>
+          <label>Génétique → Tabou : part du génétique (%) <input id="hy-gt" type="number" min="5" max="95" step="5" value="10"></label>
+          <label>Mémétique : population <input id="hy-pop" type="number" min="2" max="200" value="6"></label>
+          <label>Mémétique : évaluations de tabou par enfant <input id="hy-local" type="number" min="10" step="100" value="1000"></label>
+        </div>
+        <p class="aide" style="margin:0">Le reste du budget va à la seconde méthode du relais. Les autres réglages des hybrides sont ceux des trois méthodes ci-dessus.</p>
+      </fieldset>
+    </details>
+    <div class="actions-bas">
+      <button class="bouton principal" id="btn-optimiser">Lancer la comparaison</button>
+      <div class="progression" id="progression" hidden><div class="barre"><div id="barre-prog"></div></div><span id="msg-prog"></span></div>
+    </div>
+    <div id="resultats-optim"></div>
+  </div>
+
+  <div class="carte" id="section-horaires">
+    <h2>Programme horaire des vacations : ordre de passage, SAS, convocation</h2>
+    <p class="legende-texte">Calculé pour chaque vacation une fois les patients attribués : il ne modifie ni F ni le choix des dates.
+      Selon l'option « Réoptimiser l'ordre de passage » ci-dessous, les horaires d'un patient peuvent bouger ou non quand d'autres patients rejoignent sa vacation.</p>
+    <details class="fenetre" id="explications-horaires">
+      <summary><span class="quand-ferme">Afficher les explications</span><span class="quand-ouvert">Masquer les explications</span>
+        <span class="discret">— ordre de passage et calcul des horaires</span></summary>
+      <div class="contenu">
+        <h3>1. Ordre de passage</h3>
+        <p class="legende-texte" style="margin:0 0 6px">Parmi les patients d'une vacation, le moteur choisit l'ordre de passage qui minimise un coût C.
+          Notations (les valeurs se règlent dans les paramètres ci-dessous) :</p>
+        <ul class="explications">
+          <li><b>k</b> : un patient de la vacation ; la somme « k ambulatoire » ne porte que sur les patients ambulatoires.</li>
+          <li><b>début</b> : heure de début de la vacation (ex. 8 h 00).</li>
+          <li><b>sortie<sub>k</sub></b> : heure prévue de sortie de salle du patient k, pour l'ordre testé
+            (début + durées prévues µ et rotations des patients qui passent avant lui, + sa propre durée µ<sub>k</sub>).</li>
+          <li><b>catégorie</b> : une opération est <i>lourde</i> si sa durée prévue µ<sub>k</sub> ≥ seuil (90 min par défaut), <i>légère</i> sinon.</li>
+          <li><b>p<sub>ambu</sub></b> : coût d'une heure d'attente d'un ambulatoire depuis le début de la vacation (1 par défaut).</li>
+          <li><b>p<sub>alternance</sub></b> : coût de deux opérations de même catégorie à la suite, deux lourdes ou deux légères (2 par défaut).</li>
+          <li>Les différences d'heures sont en minutes ; la division par 60 les exprime en heures.</li>
+        </ul>
+        <p class="legende-texte" style="margin:6px 0">Coût d'un ordre de passage :</p>
+        <div class="formule"><div class="formule-tex" data-tex="C \;=\; p_{\text{ambu}} \sum_{k\ \text{ambulatoire}} \frac{\text{sortie}_k - \text{début}}{60}
+\;+\; p_{\text{alternance}} \times \text{nombre de paires consécutives de même catégorie}"></div></div>
+        <ul class="explications">
+          <li><b>1er terme</b> : les ambulatoires passent tôt, pour pouvoir rentrer chez eux le soir même.</li>
+          <li><b>2e terme</b> : le chirurgien alterne opérations lourdes (durée prévue µ ≥ seuil) et légères ; deux lourdes ou deux légères à la suite coûtent p<sub>alternance</sub>.</li>
+          <li><b>Recherche de l'ordre qui minimise C</b> :
+            <ul>
+              <li><b>Jusqu'à 6 patients : énumération exhaustive.</b> Tous les ordres possibles sont évalués (au plus 6! = 720)
+                et on garde celui de plus petit C. L'ordre trouvé est donc le meilleur possible (optimum).</li>
+              <li><b>Au-delà : recherche locale par descente.</b> On part d'un ordre simple : les patients ambulatoires du plus court
+                au plus long, puis les hospitalisés. On essaie ensuite d'échanger chaque paire de patients, et on garde l'échange s'il
+                fait baisser C. On recommence tant qu'un échange améliore C. Le résultat est un optimum local : aucun échange de deux
+                patients ne l'améliore, mais ce n'est pas forcément le meilleur ordre possible. L'énumération deviendrait trop longue :
+                10 patients donneraient déjà plus de 3,6 millions d'ordres.</li>
+            </ul></li>
+        </ul>
+        <h3>2. Horaires de chaque patient</h3>
+        <ul class="explications">
+          <li><b>Entrée en salle</b> = début de la vacation + Σ (durée prévue µ + rotation) des patients qui passent avant.
+            La rotation se règle dans « Rotation ajoutée à µ » (Capacités et délais) : elle est alors comprise dans µ et rien n'est ajouté ;
+            à 0, la rotation mesurée (12 min) est ajoutée entre deux patients, comme dans la simulation.</li>
+          <li><b>Passage en SAS</b> (pré-anesthésie) = entrée en salle − temps de SAS ; plus long avec un bloc locorégional, posé dans le SAS.</li>
+          <li><b>Convocation</b> = passage en SAS − délai d'accueil (ambulatoire ou hospitalisé), jamais avant l'heure de convocation la plus tôt.</li>
+        </ul>
+        <p class="aide">Mesuré dans la base : rotation 12 min ; SAS 37 min avec bloc, 20 min sans (99,4 % des patients y passent) ;
+          durée médiane 98 min pour un hospitalisé, 53 min pour un ambulatoire.
+          Le délai d'accueil n'est pas mesurable (la base n'a que la date d'entrée) : valeur à valider avec le service.</p>
+      </div>
+    </details>
+    <div class="grille2">
+      <div>
+        <h3>Paramètres</h3>
+        <label class="case"><input type="checkbox" id="h-reordonner"> Réoptimiser l'ordre de passage à chaque nouveau patient</label>
+        <p class="aide" style="margin:4px 0 10px">
+          <b>Cochée</b> : chaque fois qu'un patient rejoint une vacation, l'ordre de passage de toute la vacation est recalculé.
+          On garde ainsi le meilleur ordre (ambulatoires tôt, alternance lourde / légère),
+          mais la convocation, le passage en SAS et l'entrée en salle d'un patient déjà programmé peuvent changer : il faut alors le prévenir.<br>
+          <b>Décochée</b> : les horaires déjà attribués sont figés ; un nouveau patient passe après les patients déjà programmés de sa vacation.
+          Un horaire annoncé ne change plus, mais l'ordre n'est plus optimal (un ambulatoire ajouté tard peut passer en fin de journée).
+          Décocher fige les horaires actuels du planning.</p>
+        <div class="ligne3" id="p-horaires"></div>
+        <div class="actions-bas">
+          <button class="bouton principal" id="btn-sauver-horaires">Enregistrer</button>
+          <button class="bouton" id="btn-defaut-horaires">Valeurs par défaut</button>
+          <span class="discret" id="msg-horaires"></span>
+        </div>
+      </div>
+      <div>
+        <h3>Exemple sur le planning actuel</h3>
+        <div id="exemple-horaires"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grille2">
+    <div class="carte"><h2>Prédiction : erreurs sur 2022</h2>
+      <p class="legende-texte">Pour mesurer la précision : apprentissage sur 2019-2021, test sur 2022. « Sans COVID » : les mois de <span id="mois-covid"></span>
+        sont retirés de l'apprentissage (activité du bloc effondrée pendant le premier confinement : 57 % de la normale en mars, 25 % en avril).</p>
+      <details class="fenetre" id="explications-prediction">
+        <summary><span class="quand-ferme">Afficher les explications</span><span class="quand-ouvert">Masquer les explications</span></summary>
+        <div class="contenu">
+          <h3>1. Ce qui est prédit pour chaque patient</h3>
+          <div style="overflow-x:auto"><table>
+            <thead><tr><th>Variable</th><th>Étude statistique</th><th>Machine learning</th></tr></thead>
+            <tbody>
+              <tr><td><b>Durée opératoire</b> µ<sub>i</sub> (min)</td><td>moyenne des durées des cas passés semblables</td>
+                <td>modèle de régression</td></tr>
+              <tr><td><b>Écart-type</b> σ<sub>i</sub> (min)</td><td>écart-type des durées des cas semblables</td>
+                <td>écart-type des erreurs du modèle pour ce type d'intervention (global s'il y a moins de 3 cas)</td></tr>
+              <tr><td><b>Probabilité ambulatoire</b></td><td>part d'ambulatoires parmi les cas semblables</td>
+                <td>modèle de classification</td></tr>
+              <tr><td><b>Ambulatoire</b> A<sub>i</sub> (oui / non)</td><td colspan="2">oui si la probabilité ambulatoire ≥ 0,5</td></tr>
+              <tr><td><b>Nombre de nuits</b> L<sub>i</sub></td><td>0 si ambulatoire ; sinon moyenne des nuits des cas semblables hospitalisés, arrondie, au moins 1</td>
+                <td>0 si ambulatoire ; sinon modèle de régression appris sur les seuls hospitalisés, arrondi, au moins 1</td></tr>
+            </tbody>
+          </table></div>
+          <p class="aide">µ et σ servent au remplissage des vacations (W2, marge z<sub>β</sub> de W5) et au programme horaire, A<sub>i</sub> choisit
+            entre place ambulatoire et lit, L<sub>i</sub> fixe le nombre de nuits où un lit est occupé.</p>
+
+          <h3>2. À partir de quoi</h3>
+          <div style="overflow-x:auto"><table>
+            <thead><tr><th>Donnée du patient</th><th>Étude statistique</th><th>Machine learning</th></tr></thead>
+            <tbody>
+              <tr><td>Type d'intervention</td><td>oui</td><td>oui</td></tr>
+              <tr><td>Chirurgien</td><td>oui</td><td>oui</td></tr>
+              <tr><td>Diagnostic CIM-10 (chapitre et code à 3 caractères)</td><td>non</td><td>oui</td></tr>
+              <tr><td>Âge, sexe</td><td>non</td><td>oui</td></tr>
+              <tr><td>Anesthésie (type, locorégionale)</td><td>non</td><td>oui</td></tr>
+            </tbody>
+          </table></div>
+          <p class="aide">Ce sont les champs saisis par le médecin dans « Attribution patient » (ou générés dans « Patients initiaux »).
+            Les valeurs réelles apprises viennent de la base de données sur 2019 à 2022 : durée = sortie de salle − entrée en salle ; nuits = date de sortie − date d'entrée ;
+            ambulatoire = sortie le jour de l'entrée.</p>
+
+          <h3>3. Comment fonctionnent les méthodes</h3>
+          <ul class="explications" style="max-height:none">
+            <li><b>Étude statistique</b> : on cherche les cas passés « semblables » et on prend leur moyenne.
+              D'abord même type d'intervention <i>et</i> même chirurgien (s'il y en a au moins 5), sinon même type d'intervention seul
+              (au moins 3 cas), sinon toute la base. Elle ne tient pas compte du patient lui-même (âge, diagnostic…).</li>
+            <li><b>Machine learning</b> : gradient boosting (HistGradientBoosting de scikit-learn), trois modèles séparés (durée, ambulatoire, nuits).
+              Le modèle additionne jusqu'à 400 petits arbres de décision, chacun corrigeant les erreurs des précédents (taux d'apprentissage 0,05) ;
+              l'apprentissage s'arrête quand l'erreur ne baisse plus sur 15 % des données mises de côté. Les variables texte (type, chirurgien…)
+              sont traitées directement ; les valeurs rares (moins de 5 cas) sont regroupées en « Autre ».</li>
+            <li><b>Moyenne globale</b> (référence) : la même prédiction pour tous les patients (durée moyenne, nuits moyennes arrondies,
+              ambulatoire pour tous car plus d'un séjour sur deux l'est). Une méthode utile doit faire nettement mieux.</li>
+          </ul>
+
+          <h3>4. Lecture du tableau d'erreurs</h3>
+          <ul class="explications" style="max-height:none">
+            <li><b>Durée opératoire (MAE, min)</b> : écart moyen, en minutes, entre durée prévue et durée réelle des interventions de 2022.</li>
+            <li><b>Nombre de nuits (MAE)</b> : écart moyen, en nuits, entre nuits prévues et nuits réelles.</li>
+            <li><b>Ambulatoire (bonnes réponses)</b> : part des patients de 2022 correctement classés ambulatoire / hospitalisé.</li>
+          </ul>
+        </div>
+      </details>
+      <div id="table-ml"></div>
+      <h3>Modèle utilisé par l'application</h3>
+      <p class="legende-texte">Appris sur toute la base 2019-2022 ; il prédit les patients initiaux et les nouveaux patients.</p>
+      <div class="barre-outils">
+        <div class="segments" id="choix-methode"><button data-m="ml">Machine learning</button><button data-m="stat">Étude statistique</button></div>
+        <div class="segments" id="choix-covid"><button data-c="0">Mois COVID inclus</button><button data-c="1">Mois COVID exclus</button></div>
+      </div>
+      <p class="aide" id="modele-actif"></p></div>
+    <div class="carte"><h2>Tri urgences / programmé</h2><div id="tri-urgences"></div></div>
+  </div>
+  <div class="carte" id="carte-poids-defaut">
+    <h2>Poids par défaut de F</h2>
+    <p class="legende-texte">D'où viennent les poids proposés par défaut : un barème fixé intuitivement avec plusieurs essais, puis affiné par une
+      <b>optimisation bayésienne sous contraintes</b>, qui cherche le <b>planning le plus robuste</b> parmi ceux qui respectent nos cibles.</p>
+    <details class="fenetre" id="fenetre-optimisation">
+      <summary><span class="quand-ferme">Afficher : comment ont été définis les poids par défaut de F</span><span class="quand-ouvert">Masquer : comment ont été définis les poids par défaut de F</span>
+        <span class="discret">— barème initial, puis optimisation bayésienne sous contraintes (scikit-learn)</span></summary>
+      <div class="contenu optimisation">
+        <h3>1. Le problème</h3>
+        <p>Les termes de F n'ont pas la même unité (lits², minutes, jours, minutes²) : leurs poids W<sub>k</sub> ne se devinent pas.
+          On cherche les poids qui donnent, une fois le planning exécuté face aux imprévus, le meilleur score de robustesse R
+          (onglet Simulation et aléas), tout en respectant des cibles fixées par l'équipe. Écrit mathématiquement :</p>
+        <div class="formule-tex" data-tex="\max_{W}\; R(W) \qquad \text{sous les contraintes} \qquad g_k(W) \le 0, \quad k = 1, \dots, 8"></div>
+        <p>R(W) n'a pas de formule : pour le connaître, il faut calculer le planning avec ces poids (Recuit → Tabou), puis le simuler.
+          Chaque évaluation coûte environ une minute de calcul et son résultat est <b>bruité</b> : une autre graine ou d'autres tirages
+          donnent un R un peu différent. Une grille, même grossière (5 valeurs par poids), demande 5<sup>4</sup> = 625 jeux de poids et ne
+          teste que des valeurs espacées d'un facteur 10 ; faire varier un poids à la fois ignore leurs interactions. L'<b>optimisation
+          bayésienne</b> est faite pour ce cas : une fonction coûteuse, bruitée, sans dérivée, à optimiser en peu d'essais.</p>
+        <ul class="explications" style="max-height:none">
+          <li><b>Poids cherchés</b> : W<sub>1</sub>′ (places), W<sub>2</sub> (regroupement), W<sub>5</sub> (marge de salle) et W<sub>6</sub> (date souhaitée).</li>
+          <li><b>W<sub>1</sub> = 1 fixe l'échelle</b> : multiplier tous les poids par une même constante ne change pas le planning (la température
+            du recuit est calibrée sur les dégradations observées, le tabou ne fait que comparer des valeurs). Seuls les rapports entre poids comptent.</li>
+          <li><b>W<sub>3</sub> = 30 et W<sub>4</sub> = 100 restent fixes</b> : leurs termes (retard médical, capacités) sont des quasi-interdictions ;
+            on vérifie seulement qu'ils restent nuls (cibles de sécurité ci-dessous). ε = 0,5 est un réglage de l'optimiseur, pas une priorité.</li>
+          <li><b>Échelle logarithmique</b> : chaque poids est cherché de ×0,01 à ×100 autour du barème initial, soit
+            log<sub>10</sub>(W<sub>k</sub> / W<sub>k</sub><sup>réf</sup>) ∈ [−2 ; 2]. Ce sont les ordres de grandeur qui comptent : passer de 0,01 à 0,1
+            change autant que passer de 1 à 10.</li>
+        </ul>
+
+        <h3>2. Le point de départ : le barème initial</h3>
+        <p>Les poids de départ ont été cherchés intuitivement : plusieurs valeurs ont été testées à la main, avec plusieurs simulations.
+          On a retenu W<sub>1</sub> = 1, W<sub>1</sub>′ = 1, W<sub>2</sub> = 0,05, W<sub>3</sub> = 30, W<sub>4</sub> = 100, W<sub>5</sub> = 0,1 et
+          W<sub>6</sub> = 1. Ce barème sert de <b>référence</b> et de centre de la recherche.</p>
+
+        <h3>3. Les cibles à respecter</h3>
+        <p>Les cibles portent soit sur le <b>planning prévu</b> (celui que calcule Recuit → Tabou), soit sur le <b>planning exécuté</b> :
+          moyenne de 20 simulations avec les agents, en aléas ordinaires (urgences habituelles, 5 % d'annulations, 15 % de séjours prolongés),
+          avec l'arrivée de nouveaux patients pendant la simulation (3,2 par jour ouvré). Parmi les jeux de poids qui respectent toutes les cibles,
+          on retient celui dont le score R, mesuré dans la même situation, est le plus haut.</p>
+        <div class="table-norm"><table>
+          <thead><tr><th>Cible</th><th>Mesurée sur</th><th>Valeur à respecter</th><th>Fonction g<sub>k</sub> modélisée (≤ 0 si respectée)</th></tr></thead>
+          <tbody>
+            <tr><td>Vacations hors marge (Σ µ<sub>i</sub> + z<sub>β</sub> √Σ σ<sub>i</sub>² &gt; H<sub>v</sub>)</td><td>prévu</td><td>≤ 18 (sur 137)</td><td>x − 18,5</td></tr>
+            <tr><td>Patients opérés après leur limite médicale</td><td>prévu</td><td>0</td><td>ln(1 + x) − ln(1,5)</td></tr>
+            <tr><td>Nuits (lits) ou jours (places) au-delà de la capacité</td><td>prévu</td><td>0</td><td>ln(1 + x) − ln(1,5)</td></tr>
+            <tr><td>Écart-type des lits autour de la cible</td><td>exécuté</td><td>≤ 2,5 lits</td><td>x − 2,5</td></tr>
+            <tr><td>Écart-type des places autour de la cible</td><td>exécuté</td><td>≤ 2,5 places</td><td>x − 2,5</td></tr>
+            <tr><td>Remplissage des vacations utilisées</td><td>exécuté</td><td>≥ 75 %</td><td>0,75 − x</td></tr>
+            <tr><td>Lits manquants</td><td>exécuté</td><td>0 dans tous les tirages</td><td>ln(1 + x) − ln(1,025), x = moyenne des tirages</td></tr>
+            <tr><td>Places manquantes</td><td>exécuté</td><td>0 dans au moins 90 % des tirages</td><td>0,9 − part des tirages sans place manquante</td></tr>
+            <tr class="reference"><td>Objectif : score de robustesse R</td><td>exécuté</td><td>le plus haut possible</td><td>—</td></tr>
+          </tbody></table></div>
+        <p class="aide" style="margin:4px 0 0">Les comptes qui doivent rester nuls passent par un logarithme : g devient positif dès 1, sans qu'un grand
+          compte écrase le modèle.</p>
+        <details class="replie" style="margin:8px 0 4px"><summary><b>Pourquoi ces seuils ?</b> Ils ont été fixés en trois temps.</summary>
+        <ol class="explications" style="max-height:none">
+          <li><b>0 vacation hors marge, écarts-types ≤ 2</b> : aucun des 101 jeux de poids essayés ne respecte toutes les cibles. La première
+            est même impossible, quels que soient les poids : le chirurgien MT a 3 385 min d'interventions prévues pour 3 480 min de vacations,
+            et la marge de ses patients ne rentre pas (Σ µ<sub>i</sub> + z<sub>β</sub> √Σ σ<sub>i</sub>² = 3 385 + 132 = 3 517 min &gt; 3 480 min ;
+            la racine étant sous-additive, répartir ses patients dans plusieurs vacations ne fait qu'augmenter la marge totale). Une cible
+            impossible rend aussi la recherche aveugle (voir 4.c) : sa probabilité d'être respectée vaut presque 0 partout, donc P(u) aussi.</li>
+          <li><b>≤ 15 vacations hors marge, écarts-types ≤ 2,2</b> : la recherche se concentre sur une zone qui respecte toutes les cibles sauf
+            les lits (2,23 au mieux en 161 essais). Réévalués avec d'autres graines et d'autres tirages, les mêmes poids donnent 2,27 à 2,35 lits
+            et 15 à 17 vacations hors marge : ces seuils sont dans le bruit des mesures, aucun jeu de poids ne peut les garantir.</li>
+          <li><b>Seuils retenus</b> : ≤ 18 vacations hors marge (barème initial : 21 à 22) et ≤ 2,5 pour les écarts-types (barème initial :
+            2,5 à 2,7). Ce sont les seuils de la recherche présentée ci-dessous.</li>
+        </ol>
+        </details>
+
+        <h3>4. Comment fonctionne l'optimisation bayésienne sous contraintes</h3>
+        <h4>a. Une évaluation</h4>
+        <p>Pour un jeu de poids : planning prévu par Recuit → Tabou (3 graines de 200 000 évaluations, on garde la meilleure F), puis 20 simulations <b>avec les agents</b> (stratégie « Agents coordonnés » de l'onglet
+          Simulation et aléas). On obtient 9 mesures : R et les 8 cibles ; R et les cibles du planning exécuté sont donc mesurés
+          avec les agents, comme le planning serait réellement géré face aux imprévus. Tous les jeux de poids affrontent les
+          <b>mêmes</b> tirages d'aléas et les mêmes nouveaux patients : les écarts entre jeux viennent des poids, pas du hasard des tirages.</p>
+        <p class="provenance"><b>Codé par nous</b> : toute l'évaluation d'un jeu de poids (planning Recuit → Tabou sur 3 graines, 20 simulations, mêmes tirages pour tous les jeux, calcul de R et des 8 cibles), avec les modules du projet (métaheuristiques, simulation).<br>
+          <b>Importé</b> : rien de propre à l'optimisation bayésienne ; seulement le calcul en parallèle (<code>ProcessPoolExecutor</code>, bibliothèque standard de Python).</p>
+        <h4>b. Un modèle par mesure : le processus gaussien</h4>
+        <p>À partir des jeux déjà évalués, un processus gaussien prédit chaque mesure pour n'importe quel jeu de poids, avec une prédiction
+          µ(u) et une incertitude σ(u) (u = poids ramenés entre 0 et 1, en échelle log). L'hypothèse est seulement que deux jeux de poids proches
+          donnent des mesures proches ; la force de ce lien est donnée par le noyau (Matérn 5/2, une longueur par poids, plus un bruit) :</p>
+        <div class="formule-tex" data-tex="k(u, u') = \sigma_f^2 \left(1 + \sqrt{5}\,r + \tfrac{5}{3} r^2\right) e^{-\sqrt{5}\,r} + \sigma_n^2\,\mathbb{1}_{u = u'} \qquad r = \sqrt{\sum_{j} \frac{(u_j - u'_j)^2}{\ell_j^2}}"></div>
+        <div class="formule-tex" data-tex="\mu(u) = \mathbf{k}(u)^\top \left(K + \sigma_n^2 I\right)^{-1} \mathbf{y} \qquad \sigma^2(u) = k(u, u) - \mathbf{k}(u)^\top \left(K + \sigma_n^2 I\right)^{-1} \mathbf{k}(u)"></div>
+        <ul class="explications" style="max-height:none">
+          <li><b>ℓ<sub>j</sub></b>, longueur de corrélation du poids j : petite, la mesure change vite quand ce poids bouge (poids influent) ;
+            grande, ce poids compte peu. Elles sont lues à la fin dans les résultats.</li>
+          <li><b>σ<sub>n</sub>²</b>, le bruit : avec les mêmes poids, une autre graine donne un autre planning. Le modèle ne croit donc pas
+            aveuglément un essai qui a eu de la chance.</li>
+          <li>σ<sub>f</sub>, ℓ<sub>j</sub> et σ<sub>n</sub> sont ajustés à chaque tour par maximum de vraisemblance (scikit-learn,
+            <code>GaussianProcessRegressor</code>). K est la matrice des k(u<sub>a</sub>, u<sub>b</sub>) entre jeux déjà évalués, <b>y</b> leurs mesures.</li>
+          <li>Près d'un jeu déjà évalué, σ(u) est petite ; loin de tout essai, elle est grande : c'est ce qui permet d'explorer.</li>
+        </ul>
+        <p class="provenance"><b>Codé par nous</b> : un modèle par mesure (9 modèles : R et les 8 cibles) ; les poids ramenés entre 0 et 1 en échelle log (u).<br>
+          <b>Importé</b> : le processus gaussien de scikit-learn (<code>GaussianProcessRegressor</code>) : calcul de µ(u) et σ(u), noyau <code>ConstantKernel × Matern + WhiteKernel</code>, ajustement de σ<sub>f</sub>, ℓ<sub>j</sub> et σ<sub>n</sub> par maximum de vraisemblance. Paramétré par nous : Matérn ν = 2,5, une longueur par poids (entre 0,02 et 20), mesures centrées réduites, 3 redémarrages de l'ajustement.</p>
+        <h4>c. La chance de respecter les cibles</h4>
+        <p>Chaque cible a son propre modèle de g<sub>k</sub>. La probabilité qu'un jeu de poids jamais testé la respecte, puis toutes à la fois
+          (cibles supposées indépendantes), vaut :</p>
+        <div class="formule-tex" data-tex="P_k(u) = \Phi\!\left(\frac{0 - \mu_k(u)}{\sigma_k(u)}\right) \qquad P(u) = \prod_{k=1}^{8} P_k(u)"></div>
+        <p class="aide" style="margin:0 0 6px">Φ : fonction de répartition de la loi normale. Exemple : écart-type des places prédit 2,4 ± 0,3 → environ 63 % de chances d'être ≤ 2,5.</p>
+        <p class="provenance"><b>Codé par nous</b> : la formule de P<sub>k</sub>(u) et le produit des 8 probabilités.<br>
+          <b>Importé</b> : Φ, la fonction de répartition de la loi normale (<code>scipy.stats.norm</code>).</p>
+        <h4>d. Le choix du prochain essai</h4>
+        <p>On note R* le meilleur R (selon le modèle) parmi les jeux déjà évalués qui respectent toutes les cibles. Le prochain jeu essayé est
+          celui qui maximise le <b>gain espéré sur R</b> (Expected Improvement), multiplié par la chance de tout respecter :</p>
+        <div class="formule-tex" data-tex="a(u) = \underbrace{\big(\mu(u) - R^*\big)\,\Phi(z) + \sigma(u)\,\varphi(z)}_{\mathrm{EI}(u) \,=\, \mathbb{E}\left[\max(0,\; R(u) - R^*)\right]} \times P(u) \qquad z = \frac{\mu(u) - R^*}{\sigma(u)}"></div>
+        <ul class="explications" style="max-height:none">
+          <li>L'EI est grand là où µ est haut (on creuse une zone prometteuse : <b>exploitation</b>) ou là où σ est grande
+            (on va voir une zone inconnue : <b>exploration</b>).</li>
+          <li>Exemple : un jeu A qui pourrait gagner 2 points de R mais n'a que 10 % de chances de respecter les cibles vaut 2 × 0,1 = 0,2 ;
+            un jeu B qui gagnerait 0,8 point avec 90 % de chances vaut 0,72. On essaie B.</li>
+          <li>Tant qu'aucun jeu ne respecte toutes les cibles, il n'y a pas de R* : on maximise P(u) seule, pour trouver d'abord un jeu acceptable.</li>
+          <li>Interroger les modèles ne coûte presque rien : le maximum de a(u) est cherché parmi environ 6 000 candidats (suite de Sobol
+            et voisins des meilleurs jeux).</li>
+        </ul>
+        <p class="provenance"><b>Codé par nous</b> : la formule de l'EI, le produit EI × P, R* (meilleur R prédit parmi les jeux qui respectent les cibles), P(u) seule tant qu'il n'y a pas de R*, les 6 000 candidats (4 096 points de Sobol et 4 × 512 voisins des meilleurs jeux) et le choix du maximum.<br>
+          <b>Importé</b> : Φ et φ (<code>scipy.stats.norm</code>) ; la suite de Sobol (<code>scipy.stats.qmc.Sobol</code>).</p>
+        <h4>e. Le déroulement</h4>
+        <ol class="explications" style="max-height:none">
+          <li><b>Départ</b> : le barème initial et 20 jeux répartis dans tout l'espace (hypercube latin : chaque poids est découpé en 20 tranches
+            et chaque tranche est essayée une fois).</li>
+          <li><b>Tours bayésiens</b> : à chaque tour, on ajuste les 9 modèles, on choisit 4 jeux, on les évalue en parallèle. Pour choisir 4 jeux
+            d'un coup, après chaque choix le modèle fait comme si la mesure valait sa prédiction (« kriging believer ») : son incertitude
+            s'effondre à cet endroit et le choix suivant va ailleurs. Au total, 201 jeux évalués : le barème initial, les 20 jeux de départ
+            et 45 tours de 4 jeux.</li>
+          <li><b>Validation</b> : les 3 meilleurs jeux qui respectent les cibles (selon le modèle de R) et le barème initial sont réévalués avec
+            3 autres graines d'optimisation, 20 autres tirages et d'autres nouveaux patients. Avec une mesure bruitée, le meilleur essai de la
+            recherche est souvent un essai chanceux ; la validation vérifie qu'il reste bon sur des tirages qu'il n'a jamais vus. On retient le
+            meilleur R parmi ceux qui y respectent encore toutes les cibles ; ses poids sont arrondis à 2 chiffres et revalidés.</li>
+          <li><b>Poids par défaut</b> : les poids par défaut du site sont mesurés avec le même protocole de validation. Ils ne sont remplacés
+            que si les poids arrondis font mieux qu'eux en respectant toutes les cibles.</li>
+        </ol>
+        <p class="provenance"><b>Codé par nous</b> : le départ, les tours, le lot de 4 jeux par « kriging believer » (le processus gaussien de scikit-learn est réajusté sur les mesures fictives, ses paramètres gardés), l'évaluation en parallèle, la validation, l'arrondi des poids, leur revalidation et la comparaison avec les poids par défaut.<br>
+          <b>Importé</b> : l'hypercube latin (<code>scipy.stats.qmc.LatinHypercube</code>).</p>
+        <p class="aide" style="margin:4px 0 0"><b>En résumé</b> : le modèle de substitution (processus gaussien) vient de scikit-learn,
+          la loi normale et les suites de points (hypercube latin, Sobol) de scipy. L'optimisation bayésienne sous contraintes elle-même est codée
+          par nous, sans bibliothèque d'optimisation bayésienne : évaluation, probabilité de respecter les cibles, acquisition EI × P,
+          candidats, lots de 4, validation. Script : <code>scripts/optimisation_poids.py</code>.</p>
+
+        <h3>5. Résultats</h3>
+        <div id="optimisation"></div>
+      </div>
+    </details>
+  </div>
+</section>
+</main>
+<div id="toast" class="toast" hidden></div>
+<!-- programme opératoire mis en page pour l'impression (rempli par app.js, visible seulement à l'impression) -->
+<div id="impression"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

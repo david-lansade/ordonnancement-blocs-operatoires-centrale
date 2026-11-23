@@ -1,0 +1,11 @@
+# versions installées dans .venv (2026-10-20)
+Flask==3.1.3
+numpy==2.5.3
+pandas==3.0.6
+scipy==1.18.1
+scikit-learn==1.9.1
+joblib==1.6.0
+Mesa==3.5.1
+matplotlib==3.11.2
+openpyxl==3.1.5
+pytest==9.1.1

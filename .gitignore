@@ -1,0 +1,32 @@
+# Environnement Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Outils locaux
+.claude/
+.vscode/
+.idea/
+*.log
+
+# Caches et état local de l'application (recréés automatiquement au lancement)
+data/processed/
+
+# Figures générées par scripts/comparer_metaheuristiques.py
+figures/
+
+# Documents : seuls les consignes initiales et les captures d'écran sont publiés
+docs/*
+!docs/Optimisation_bloc_operatoire_IA.pptx
+!docs/captures/
+
+# Vidéo de présentation
+video_pitch/
+
+# Fichiers Office temporaires / système
+~$*
+Thumbs.db
+desktop.ini
+.DS_Store
