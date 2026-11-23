@@ -21,13 +21,15 @@ Outil d'aide à la décision : prédiction par apprentissage automatique, métah
 >
 > 👥 **Équipe :** David LANSADE, Robin CURSENTE, Clément MORIN, Rafael LAZAR.
 
-<div align="center">
+### En bref
 
-| 📊 **14 649** | ⚙️ **8** | ⏱️ **≈ 16 s** | 🛡️ **+10 points** |
-|:---:|:---:|:---:|:---:|
-| séjours chirurgicaux réels (2019-2022) pour apprendre | méthodes d'optimisation comparées à budget égal | pour programmer 600 patients sur 8 semaines (meilleur hybride) | de robustesse en situation de crise grâce aux agents |
-
-</div>
+- 📊 Les modèles de prédiction sont appris sur **14 649 séjours chirurgicaux réels** (2019-2022).
+- ⏱️ L'outil programme **600 patients sur 8 semaines en environ 16 secondes**, sans dépasser les capacités de lits
+  ni de places ambulatoires.
+- ⚙️ **8 méthodes d'optimisation** ont été comparées dans les mêmes conditions : la meilleure fait **2,8 fois mieux**
+  qu'une programmation patient par patient.
+- 🛡️ En situation de crise, la coordination entre le bloc et les services **divise par près de deux les lits
+  manquants**.
 
 ---
 
